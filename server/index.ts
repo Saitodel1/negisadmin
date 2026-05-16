@@ -151,6 +151,22 @@ async function findAuthUserIdByEmail(client: SupabaseClient, email: string) {
   return null;
 }
 
+async function loadAuthUsersById(client: SupabaseClient) {
+  const users = new Map<string, { id: string; email: string }>();
+
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await client.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw error;
+
+    data.users.forEach((user) => {
+      if (user.email) users.set(user.id, { id: user.id, email: user.email });
+    });
+    if (data.users.length < 1000) break;
+  }
+
+  return users;
+}
+
 async function readPlans(): Promise<Plan[]> {
   try {
     const raw = await fs.readFile(plansFile, 'utf8');
@@ -196,9 +212,13 @@ async function loadClinics(client: SupabaseClient | null): Promise<Clinic[]> {
 
   if (error || !data) return [];
 
+  const authUsersById = await loadAuthUsersById(client).catch(() => new Map<string, { id: string; email: string }>());
+
   return Promise.all(
     data.map(async (clinic: Record<string, unknown>) => {
       const id = String(clinic.id);
+      const ownerId = String(clinic.owner_id || clinic.ownerId || clinic.user_id || clinic.userId || '');
+      const ownerEmail = authUsersById.get(ownerId)?.email;
       const [agents, leads, bookings] = await Promise.all([
         safeClinicCount(client, 'agents', id),
         safeClinicCount(client, 'leads', id),
@@ -209,7 +229,7 @@ async function loadClinics(client: SupabaseClient | null): Promise<Clinic[]> {
         id,
         name: pickText(clinic, ['name', 'clinic_name', 'title', 'company_name'], 'Клиника без названия'),
         ownerName: pickText(clinic, ['owner_name', 'ownerName', 'admin_name', 'contact_name'], 'Владелец'),
-        ownerEmail: pickText(clinic, ['owner_email', 'ownerEmail', 'email', 'admin_email'], 'email не указан'),
+        ownerEmail: pickText(clinic, ['owner_email', 'ownerEmail', 'email', 'admin_email'], ownerEmail || 'email не указан'),
         plan: pickText(clinic, ['plan', 'tariff', 'subscription_plan'], 'Basic'),
         status: pickText(clinic, ['status', 'state'], 'active'),
         agentsCount: agents,
