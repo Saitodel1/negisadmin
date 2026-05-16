@@ -521,7 +521,7 @@ app.get('/api/settings', requireAuth, (_req, res) => {
   });
 });
 
-if (!process.env.VERCEL) {
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`Negis Control API listening on http://localhost:${PORT}`);
   });
