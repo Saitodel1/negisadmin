@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
@@ -128,6 +129,26 @@ function pickText(row: Record<string, unknown>, keys: string[], fallback: string
     if (typeof value === 'string' && value.trim()) return value;
   }
   return fallback;
+}
+
+function generateTemporaryPassword() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$%';
+  return Array.from({ length: 14 }, () => alphabet[crypto.randomInt(alphabet.length)]).join('');
+}
+
+async function findAuthUserIdByEmail(client: SupabaseClient, email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await client.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw error;
+
+    const user = data.users.find((item) => item.email?.trim().toLowerCase() === normalizedEmail);
+    if (user) return user.id;
+    if (data.users.length < 1000) break;
+  }
+
+  return null;
 }
 
 async function readPlans(): Promise<Plan[]> {
@@ -403,6 +424,49 @@ app.post('/api/clinics/:id/impersonate', requireAuth, async (req, res) => {
   url.searchParams.set('impersonate_token', token);
   url.searchParams.set('clinic_id', clinic.id);
   res.json({ url: url.toString(), token, clinic });
+});
+
+app.post('/api/clinics/:id/reset-password', requireAuth, async (req, res) => {
+  const client = getSupabase();
+  if (!client) {
+    res.status(500).json({ error: 'Supabase service role не настроен' });
+    return;
+  }
+
+  const clinics = await loadClinics(client);
+  const clinic = clinics.find((item) => item.id === req.params.id);
+  if (!clinic) {
+    res.status(404).json({ error: 'Клиника не найдена' });
+    return;
+  }
+
+  const login = clinic.ownerEmail.trim();
+  if (!login || login === 'email не указан' || !login.includes('@')) {
+    res.status(400).json({ error: 'У клиники не указан email администратора' });
+    return;
+  }
+
+  const userId = await findAuthUserIdByEmail(client, login);
+  if (!userId) {
+    res.status(404).json({ error: 'Пользователь с таким email не найден в Supabase Auth' });
+    return;
+  }
+
+  const temporaryPassword = generateTemporaryPassword();
+  const { error } = await client.auth.admin.updateUserById(userId, { password: temporaryPassword });
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  await client.from('super_logs').insert({
+    action: 'clinic_password_reset',
+    target_clinic_id: clinic.id,
+    target_user_id: userId,
+    details: { login, resetBy: res.locals.session?.email }
+  });
+
+  res.json({ login, temporaryPassword, clinicId: clinic.id, clinicName: clinic.name });
 });
 
 app.post('/api/impersonation/verify', (req, res) => {

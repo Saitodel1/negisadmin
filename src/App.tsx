@@ -15,6 +15,7 @@ import {
   ChevronRight,
   CircleDollarSign,
   Clock3,
+  Copy,
   Eye,
   FileDown,
   Gauge,
@@ -77,6 +78,13 @@ type Plan = {
   name: string;
   price: number;
   limits: string;
+};
+
+type ClinicAccess = {
+  login: string;
+  temporaryPassword: string;
+  clinicId: string;
+  clinicName: string;
 };
 
 const navItems = [
@@ -167,6 +175,11 @@ async function impersonateClinic(clinic: Clinic) {
   const result = await api<{ url: string }>(`/api/clinics/${clinic.id}/impersonate`, { method: 'POST' });
   window.open(result.url, '_blank', 'noopener,noreferrer');
   toast.success(`Открываем клинику без повторного входа: ${clinic.name}`);
+}
+
+async function copyToClipboard(value: string, message = 'Скопировано') {
+  await navigator.clipboard.writeText(value);
+  toast.success(message);
 }
 
 function useSession() {
@@ -526,6 +539,7 @@ function ClinicsPage() {
 function ClinicDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
+  const [access, setAccess] = useState<ClinicAccess | null>(null);
   const detail = useQuery({
     queryKey: ['clinic', id],
     queryFn: () =>
@@ -543,6 +557,14 @@ function ClinicDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['clinic', id] });
       queryClient.invalidateQueries({ queryKey: ['clinics'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+    onError: (error) => toast.error(error.message)
+  });
+  const resetPassword = useMutation({
+    mutationFn: () => api<ClinicAccess>(`/api/clinics/${id}/reset-password`, { method: 'POST' }),
+    onSuccess: (result) => {
+      setAccess(result);
+      toast.success('Временный пароль создан');
     },
     onError: (error) => toast.error(error.message)
   });
@@ -583,6 +605,28 @@ function ClinicDetailPage() {
               ['Последняя активность', relativeTime(clinic.lastActivity)]
             ]}
           />
+          <div className="access-panel">
+            <div>
+              <span>Логин администратора</span>
+              <strong>{clinic.ownerEmail}</strong>
+            </div>
+            <div>
+              <span>Пароль</span>
+              <strong>{access?.temporaryPassword || 'Не хранится. Можно создать временный.'}</strong>
+            </div>
+            <div className="access-actions">
+              <button
+                className="neu-btn-primary"
+                disabled={resetPassword.isPending}
+                onClick={() => resetPassword.mutate()}
+              >
+                {resetPassword.isPending ? 'Создаём пароль' : 'Создать временный пароль'}
+              </button>
+              <button className="icon-button" disabled={!access?.temporaryPassword} onClick={() => access && copyToClipboard(access.temporaryPassword, 'Пароль скопирован')} title="Скопировать пароль">
+                <Copy size={17} />
+              </button>
+            </div>
+          </div>
         </section>
         <section className="stats-column">
           <MetricCard icon={<Users />} label="Лидов всего" value={clinic.leadsCount} hint="за всё время" />
