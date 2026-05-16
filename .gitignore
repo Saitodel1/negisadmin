@@ -1,0 +1,9 @@
+node_modules
+dist
+dist-server
+.env
+.env.local
+*.log
+*.tsbuildinfo
+server/index.js
+server/index.d.ts
