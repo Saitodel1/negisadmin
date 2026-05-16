@@ -437,12 +437,13 @@ app.post('/api/clinics/:id/impersonate', requireAuth, async (req, res) => {
       issuedBy: res.locals.session?.email
     },
     SESSION_SECRET,
-    { expiresIn: '5m' }
+    { expiresIn: '30m' }
   );
 
   const url = new URL(MAIN_NEGIS_APP_URL);
   url.searchParams.set('impersonate_token', token);
   url.searchParams.set('clinic_id', clinic.id);
+  url.searchParams.set('impersonate_at', String(Date.now()));
   res.json({ url: url.toString(), token, clinic });
 });
 
