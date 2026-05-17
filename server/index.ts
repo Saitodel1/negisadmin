@@ -243,6 +243,89 @@ async function loadClinics(client: SupabaseClient | null): Promise<Clinic[]> {
   );
 }
 
+async function findClinicById(client: SupabaseClient | null, clinicId: string) {
+  const clinics = await loadClinics(client);
+  return clinics.find((item) => item.id === clinicId) || null;
+}
+
+async function writeSuperLog(
+  client: SupabaseClient | null,
+  action: string,
+  details: Record<string, unknown>,
+  targetClinicId?: string | null,
+  targetUserId?: string | null
+) {
+  if (!client) return;
+  await client
+    .from('super_logs')
+    .insert({
+      action,
+      target_clinic_id: targetClinicId || null,
+      target_user_id: targetUserId || null,
+      details
+    })
+    .then(() => undefined, () => undefined);
+}
+
+async function updateClinicStatus(client: SupabaseClient, clinicId: string, status: string) {
+  const { error } = await client.from('clinics').update({ status }).eq('id', clinicId);
+  if (error) throw error;
+}
+
+async function createInvoice(client: SupabaseClient, clinic: Clinic, amount: number, plan: string, issuedBy?: string) {
+  const dueAt = iso(7);
+  const fullPayload = {
+    clinic_id: clinic.id,
+    clinic_name: clinic.name,
+    plan,
+    amount,
+    method: 'invoice',
+    status: 'pending',
+    details: { issuedBy, dueAt }
+  };
+  const basicPayload = {
+    clinic_id: clinic.id,
+    plan,
+    amount,
+    method: 'invoice',
+    status: 'pending'
+  };
+
+  const first = await client.from('payments').insert(fullPayload).select('*').single();
+  if (!first.error) return first.data;
+
+  const second = await client.from('payments').insert(basicPayload).select('*').single();
+  if (second.error) throw second.error;
+  return second.data;
+}
+
+async function deleteClinicCascade(client: SupabaseClient, clinicId: string) {
+  const relatedTables = [
+    'bookings',
+    'leads',
+    'services',
+    'agents',
+    'roles',
+    'lead_statuses',
+    'booking_statuses',
+    'subscriptions',
+    'payments',
+    'shifts',
+    'user_roles'
+  ];
+
+  for (const table of relatedTables) {
+    await client
+      .from(table)
+      .delete()
+      .eq('clinic_id', clinicId)
+      .then(() => undefined, () => undefined);
+  }
+
+  const { error } = await client.from('clinics').delete().eq('id', clinicId);
+  if (error) throw error;
+}
+
 async function getOverview() {
   const client = getSupabase();
   const clinics = await loadClinics(client);
@@ -535,6 +618,100 @@ app.patch('/api/clinics/:id/status', requireAuth, async (req, res) => {
   }
 
   res.json({ id: req.params.id, status });
+});
+
+app.post('/api/clinics/:id/trial', requireAuth, async (req, res) => {
+  const client = getSupabase();
+  if (!client) {
+    res.status(500).json({ error: 'Supabase service role не настроен' });
+    return;
+  }
+
+  const clinic = await findClinicById(client, String(req.params.id));
+  if (!clinic) {
+    res.status(404).json({ error: 'Клиника не найдена' });
+    return;
+  }
+
+  const days = Math.max(1, Math.min(90, Number(req.body?.days || 14)));
+  const trialEndsAt = iso(days);
+
+  try {
+    await updateClinicStatus(client, clinic.id, 'trial');
+    await client
+      .from('subscriptions')
+      .insert({
+        clinic_id: clinic.id,
+        clinic_name: clinic.name,
+        plan: clinic.plan || 'Trial',
+        amount: 0,
+        status: 'trial',
+        starts_at: new Date().toISOString(),
+        ends_at: trialEndsAt
+      })
+      .then(() => undefined, () => undefined);
+    await writeSuperLog(client, 'clinic_trial_opened', { days, trialEndsAt, openedBy: res.locals.session?.email }, clinic.id);
+    res.json({ id: clinic.id, status: 'trial', trialEndsAt });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Не удалось открыть пробный период' });
+  }
+});
+
+app.post('/api/clinics/:id/invoice', requireAuth, async (req, res) => {
+  const client = getSupabase();
+  if (!client) {
+    res.status(500).json({ error: 'Supabase service role не настроен' });
+    return;
+  }
+
+  const clinic = await findClinicById(client, String(req.params.id));
+  if (!clinic) {
+    res.status(404).json({ error: 'Клиника не найдена' });
+    return;
+  }
+
+  const amount = Number(req.body?.amount);
+  const plan = String(req.body?.plan || clinic.plan || 'Basic').trim();
+  if (!Number.isFinite(amount) || amount <= 0) {
+    res.status(400).json({ error: 'Укажите сумму счёта больше 0' });
+    return;
+  }
+
+  try {
+    const invoice = await createInvoice(client, clinic, Math.round(amount), plan, res.locals.session?.email);
+    await writeSuperLog(client, 'clinic_invoice_created', { amount: Math.round(amount), plan, issuedBy: res.locals.session?.email }, clinic.id);
+    res.json({ invoice, clinicId: clinic.id, clinicName: clinic.name });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Не удалось выставить счёт' });
+  }
+});
+
+app.delete('/api/clinics/:id', requireAuth, async (req, res) => {
+  const client = getSupabase();
+  if (!client) {
+    res.status(500).json({ error: 'Supabase service role не настроен' });
+    return;
+  }
+
+  const clinic = await findClinicById(client, String(req.params.id));
+  if (!clinic) {
+    res.status(404).json({ error: 'Клиника не найдена' });
+    return;
+  }
+
+  const confirmation = String(req.body?.confirmation || '').trim();
+  if (confirmation !== clinic.name) {
+    res.status(400).json({ error: 'Для удаления введите точное название клиники' });
+    return;
+  }
+
+  try {
+    await deleteClinicCascade(client, clinic.id);
+    await writeSuperLog(client, 'clinic_deleted', { clinicId: clinic.id, clinicName: clinic.name, deletedBy: res.locals.session?.email }, null);
+    res.json({ id: clinic.id, deleted: true });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Не удалось удалить клинику' });
+  }
 });
 
 app.get('/api/finances', requireAuth, async (_req, res) => {

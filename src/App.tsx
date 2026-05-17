@@ -18,14 +18,17 @@ import {
   Copy,
   Eye,
   FileDown,
+  Gift,
   Gauge,
   Lock,
   LogOut,
   RefreshCw,
+  ReceiptText,
   Search,
   Settings,
   ShieldAlert,
   SlidersHorizontal,
+  Trash2,
   Users
 } from 'lucide-react';
 import {
@@ -425,8 +428,23 @@ function PanelHeader({ title, action }: { title: string; action?: string }) {
 }
 
 function ClinicTable({ clinics, compact = false }: { clinics: Clinic[]; compact?: boolean }) {
+  const queryClient = useQueryClient();
+  const [invoiceClinic, setInvoiceClinic] = useState<Clinic | null>(null);
+  const [deleteClinic, setDeleteClinic] = useState<Clinic | null>(null);
+  const openTrial = useMutation({
+    mutationFn: (clinic: Clinic) => api(`/api/clinics/${clinic.id}/trial`, { method: 'POST', body: JSON.stringify({ days: 14 }) }),
+    onSuccess: () => {
+      toast.success('Пробный период открыт');
+      queryClient.invalidateQueries({ queryKey: ['clinics'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+    },
+    onError: (error) => toast.error(error.message)
+  });
+
   return (
-    <div className="table-wrap">
+    <>
+      <div className="table-wrap">
       <table>
         <thead>
           <tr>
@@ -471,12 +489,120 @@ function ClinicTable({ clinics, compact = false }: { clinics: Clinic[]; compact?
                   <button className="mini-button" onClick={() => impersonateClinic(clinic).catch((error) => toast.error(error.message))}>
                     Войти
                   </button>
+                  {!compact && (
+                    <>
+                      <button className="icon-button neu-sm" onClick={() => setInvoiceClinic(clinic)} title="Выставить счет">
+                        <ReceiptText size={16} />
+                      </button>
+                      <button className="icon-button neu-sm" disabled={openTrial.isPending} onClick={() => openTrial.mutate(clinic)} title="Открыть пробный период">
+                        <Gift size={16} />
+                      </button>
+                      <button className="icon-button neu-sm danger-icon" onClick={() => setDeleteClinic(clinic)} title="Удалить клинику">
+                        <Trash2 size={16} />
+                      </button>
+                    </>
+                  )}
                 </div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
+      {invoiceClinic && <InvoiceModal clinic={invoiceClinic} onClose={() => setInvoiceClinic(null)} />}
+      {deleteClinic && <DeleteClinicModal clinic={deleteClinic} onClose={() => setDeleteClinic(null)} />}
+    </>
+  );
+}
+
+function InvoiceModal({ clinic, onClose }: { clinic: Clinic; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [amount, setAmount] = useState('');
+  const [plan, setPlan] = useState(clinic.plan || 'Basic');
+  const create = useMutation({
+    mutationFn: () =>
+      api(`/api/clinics/${clinic.id}/invoice`, {
+        method: 'POST',
+        body: JSON.stringify({ amount: Number(amount), plan })
+      }),
+    onSuccess: () => {
+      toast.success('Счет выставлен');
+      queryClient.invalidateQueries({ queryKey: ['finances'] });
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+      onClose();
+    },
+    onError: (error) => toast.error(error.message)
+  });
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-card neu">
+        <button className="icon-button modal-close" onClick={onClose} aria-label="Закрыть">×</button>
+        <div>
+          <h3>Выставить счет</h3>
+          <p>{clinic.name}</p>
+        </div>
+        <div className="modal-form">
+          <label>
+            <span>Тариф</span>
+            <input className="neu-input" value={plan} onChange={(event) => setPlan(event.target.value)} />
+          </label>
+          <label>
+            <span>Сумма</span>
+            <input className="neu-input" type="number" min="1" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="59000" />
+          </label>
+        </div>
+        <div className="modal-actions">
+          <button className="neu-btn" onClick={onClose}>Отмена</button>
+          <button className="neu-btn-primary" disabled={create.isPending || !Number(amount)} onClick={() => create.mutate()}>
+            {create.isPending ? 'Выставляем' : 'Выставить счет'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeleteClinicModal({ clinic, onClose }: { clinic: Clinic; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [confirmation, setConfirmation] = useState('');
+  const remove = useMutation({
+    mutationFn: () =>
+      api(`/api/clinics/${clinic.id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ confirmation })
+      }),
+    onSuccess: () => {
+      toast.success('Клиника удалена');
+      queryClient.invalidateQueries({ queryKey: ['clinics'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['finances'] });
+      onClose();
+    },
+    onError: (error) => toast.error(error.message)
+  });
+  const canDelete = confirmation.trim() === clinic.name;
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-card neu">
+        <button className="icon-button modal-close" onClick={onClose} aria-label="Закрыть">×</button>
+        <div>
+          <h3>Удалить клинику</h3>
+          <p>Это действие удалит клинику и связанные записи из админки.</p>
+        </div>
+        <div className="danger-note">
+          Введите точное название: <strong>{clinic.name}</strong>
+        </div>
+        <input className="neu-input" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder={clinic.name} />
+        <div className="modal-actions">
+          <button className="neu-btn" onClick={onClose}>Отмена</button>
+          <button className="neu-btn-danger" disabled={remove.isPending || !canDelete} onClick={() => remove.mutate()}>
+            {remove.isPending ? 'Удаляем' : 'Удалить'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
