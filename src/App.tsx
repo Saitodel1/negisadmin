@@ -491,14 +491,17 @@ function ClinicTable({ clinics, compact = false }: { clinics: Clinic[]; compact?
                   </button>
                   {!compact && (
                     <>
-                      <button className="icon-button neu-sm" onClick={() => setInvoiceClinic(clinic)} title="Выставить счет">
+                      <button className="mini-button secondary-action" onClick={() => setInvoiceClinic(clinic)} title="Выставить счет">
                         <ReceiptText size={16} />
+                        Счет
                       </button>
-                      <button className="icon-button neu-sm" disabled={openTrial.isPending} onClick={() => openTrial.mutate(clinic)} title="Открыть пробный период">
+                      <button className="mini-button secondary-action" disabled={openTrial.isPending} onClick={() => openTrial.mutate(clinic)} title="Открыть пробный период">
                         <Gift size={16} />
+                        Пробный
                       </button>
-                      <button className="icon-button neu-sm danger-icon" onClick={() => setDeleteClinic(clinic)} title="Удалить клинику">
+                      <button className="mini-button delete-action" onClick={() => setDeleteClinic(clinic)} title="Удалить клинику">
                         <Trash2 size={16} />
+                        Удалить
                       </button>
                     </>
                   )}

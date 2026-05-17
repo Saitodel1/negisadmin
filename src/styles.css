@@ -530,10 +530,23 @@ td small {
   padding: 0 12px;
   background: var(--primary);
   color: white;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .danger-icon {
   color: var(--danger);
+}
+
+.secondary-action {
+  background: #eef3f8;
+  color: var(--text);
+}
+
+.delete-action {
+  background: var(--danger);
+  color: white;
 }
 
 .toolbar {
