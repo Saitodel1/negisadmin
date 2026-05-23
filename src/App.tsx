@@ -215,6 +215,7 @@ function LoginPage() {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showLogin, setShowLogin] = useState(false);
 
   const login = useMutation({
     mutationFn: () => api<Session>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
@@ -227,34 +228,60 @@ function LoginPage() {
   });
 
   return (
-    <main className="login-screen">
-      <form
-        className="login-card neu-lg"
-        onSubmit={(event) => {
-          event.preventDefault();
-          login.mutate();
-        }}
-      >
-        <div className="logo-stack">
-          <h1>
-            Negis <span>Control</span>
-          </h1>
-          <p>Панель управления платформой</p>
-        </div>
-        <div className="warning-strip">ТОЛЬКО ДЛЯ АДМИНИСТРАТОРА</div>
-        <label>
-          Email
-          <input className="neu-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-        </label>
-        <label>
-          Пароль
-          <input className="neu-input" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-        </label>
-        <button className="neu-btn-primary full" disabled={login.isPending}>
-          <Lock size={17} />
-          {login.isPending ? 'Проверяем' : 'Войти'}
-        </button>
-      </form>
+    <main className={`login-screen admin-entry ${showLogin ? 'is-login-open' : ''}`}>
+      {!showLogin ? (
+        <section className="admin-landing" aria-label="Negis Control">
+          <div className="admin-orbit" aria-hidden="true">
+            <span className="orbit-mark orbit-mark-top" />
+            <span className="orbit-mark orbit-mark-right" />
+            <span className="orbit-mark orbit-mark-bottom" />
+            <span className="orbit-mark orbit-mark-left" />
+          </div>
+          <button className="admin-seal-button" type="button" onClick={() => setShowLogin(true)} aria-label="Открыть вход администратора">
+            <span className="seal-string" aria-hidden="true" />
+            <span className="seal-ring" aria-hidden="true">
+              <span className="seal-inner">
+                <span className="seal-word">NEGIS</span>
+              </span>
+            </span>
+            <span className="security-ribbon">
+              <span>Вход администратора</span>
+            </span>
+          </button>
+        </section>
+      ) : (
+        <form
+          className="login-card admin-login-card neu-lg"
+          onSubmit={(event) => {
+            event.preventDefault();
+            login.mutate();
+          }}
+        >
+          <button className="login-back-button" type="button" onClick={() => setShowLogin(false)}>
+            <ArrowLeftToLine size={16} />
+            Вернуться на главный экран
+          </button>
+          <div className="logo-stack">
+            <h1>
+              Negis <span>Control</span>
+            </h1>
+            <p>Панель управления платформой</p>
+          </div>
+          <div className="warning-strip">ТОЛЬКО ДЛЯ АДМИНИСТРАТОРА</div>
+          <label>
+            Email
+            <input className="neu-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+          </label>
+          <label>
+            Пароль
+            <input className="neu-input" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+          </label>
+          <button className="neu-btn-primary full" disabled={login.isPending}>
+            <Lock size={17} />
+            {login.isPending ? 'Проверяем' : 'Войти'}
+          </button>
+        </form>
+      )}
     </main>
   );
 }
