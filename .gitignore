@@ -8,3 +8,5 @@ dist-server
 *.tsbuildinfo
 server/index.js
 server/index.d.ts
+
+.vercel
