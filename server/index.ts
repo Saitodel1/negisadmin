@@ -100,6 +100,12 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+function getRequestIp(req: Request) {
+  const forwardedFor = req.headers['x-forwarded-for'];
+  const firstForwardedIp = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor?.split(',')[0];
+  return (firstForwardedIp || req.ip || '').trim();
+}
+
 async function tableCount(client: SupabaseClient, table: string) {
   const { count, error } = await client.from(table).select('*', { count: 'exact', head: true });
   if (error) throw error;
@@ -253,7 +259,8 @@ async function writeSuperLog(
   action: string,
   details: Record<string, unknown>,
   targetClinicId?: string | null,
-  targetUserId?: string | null
+  targetUserId?: string | null,
+  ipAddress?: string | null
 ) {
   if (!client) return;
   await client
@@ -262,7 +269,8 @@ async function writeSuperLog(
       action,
       target_clinic_id: targetClinicId || null,
       target_user_id: targetUserId || null,
-      details
+      details,
+      ip_address: ipAddress || null
     })
     .then(() => undefined, () => undefined);
 }
@@ -368,7 +376,7 @@ async function getOverview() {
   };
 }
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body || {};
   const expectedEmail = process.env.SUPER_ADMIN_EMAIL || (process.env.NODE_ENV === 'production' ? undefined : 'admin@negis.local');
   const expectedPassword = process.env.SUPER_ADMIN_PASSWORD || (process.env.NODE_ENV === 'production' ? undefined : 'admin123');
@@ -390,10 +398,15 @@ app.post('/api/auth/login', (req, res) => {
     maxAge: SESSION_TTL_SECONDS * 1000
   });
 
+  await writeSuperLog(getSupabase(), 'super_admin_login', { email: expectedEmail }, null, null, getRequestIp(req));
   res.json({ email: expectedEmail, role: 'super_admin' });
 });
 
-app.post('/api/auth/logout', (_req, res) => {
+app.post('/api/auth/logout', async (req, res) => {
+  const session = readSession(req);
+  if (session) {
+    await writeSuperLog(getSupabase(), 'super_admin_logout', { email: session.email }, null, null, getRequestIp(req));
+  }
   res.clearCookie(SESSION_COOKIE);
   res.json({ ok: true });
 });
@@ -498,13 +511,23 @@ app.patch('/api/plans/:name', requireAuth, async (req, res) => {
   const updatedPlan = { ...plans[index], price, limits };
   plans[index] = updatedPlan;
   await writePlans(plans);
-  await tryUpdatePlanInSupabase(getSupabase(), updatedPlan);
+  const client = getSupabase();
+  await tryUpdatePlanInSupabase(client, updatedPlan);
+  await writeSuperLog(
+    client,
+    'plan_updated',
+    { plan: updatedPlan.name, price, limits, updatedBy: res.locals.session?.email },
+    null,
+    null,
+    getRequestIp(req)
+  );
 
   res.json({ plan: updatedPlan, plans });
 });
 
 app.post('/api/clinics/:id/impersonate', requireAuth, async (req, res) => {
-  const clinics = await loadClinics(getSupabase());
+  const client = getSupabase();
+  const clinics = await loadClinics(client);
   const clinic = clinics.find((item) => item.id === req.params.id);
   if (!clinic) {
     res.status(404).json({ error: '??????? ?? ???????' });
@@ -527,6 +550,14 @@ app.post('/api/clinics/:id/impersonate', requireAuth, async (req, res) => {
   url.searchParams.set('impersonate_token', token);
   url.searchParams.set('clinic_id', clinic.id);
   url.searchParams.set('impersonate_at', String(Date.now()));
+  await writeSuperLog(
+    client,
+    'clinic_impersonation_started',
+    { clinicName: clinic.name, issuedBy: res.locals.session?.email },
+    clinic.id,
+    null,
+    getRequestIp(req)
+  );
   res.json({ url: url.toString(), token, clinic });
 });
 
@@ -567,7 +598,8 @@ app.post('/api/clinics/:id/reset-password', requireAuth, async (req, res) => {
     action: 'clinic_password_reset',
     target_clinic_id: clinic.id,
     target_user_id: userId,
-    details: { login, resetBy: res.locals.session?.email }
+    details: { login, resetBy: res.locals.session?.email },
+    ip_address: getRequestIp(req)
   });
 
   res.json({ login, temporaryPassword, clinicId: clinic.id, clinicName: clinic.name });
@@ -615,6 +647,14 @@ app.patch('/api/clinics/:id/status', requireAuth, async (req, res) => {
   const client = getSupabase();
   if (client) {
     await client.from('clinics').update({ status }).eq('id', req.params.id);
+    await writeSuperLog(
+      client,
+      'clinic_status_updated',
+      { status, updatedBy: res.locals.session?.email },
+      String(req.params.id),
+      null,
+      getRequestIp(req)
+    );
   }
 
   res.json({ id: req.params.id, status });
@@ -650,7 +690,7 @@ app.post('/api/clinics/:id/trial', requireAuth, async (req, res) => {
         ends_at: trialEndsAt
       })
       .then(() => undefined, () => undefined);
-    await writeSuperLog(client, 'clinic_trial_opened', { days, trialEndsAt, openedBy: res.locals.session?.email }, clinic.id);
+    await writeSuperLog(client, 'clinic_trial_opened', { days, trialEndsAt, openedBy: res.locals.session?.email }, clinic.id, null, getRequestIp(req));
     res.json({ id: clinic.id, status: 'trial', trialEndsAt });
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : 'Не удалось открыть пробный период' });
@@ -679,7 +719,7 @@ app.post('/api/clinics/:id/invoice', requireAuth, async (req, res) => {
 
   try {
     const invoice = await createInvoice(client, clinic, Math.round(amount), plan, res.locals.session?.email);
-    await writeSuperLog(client, 'clinic_invoice_created', { amount: Math.round(amount), plan, issuedBy: res.locals.session?.email }, clinic.id);
+    await writeSuperLog(client, 'clinic_invoice_created', { amount: Math.round(amount), plan, issuedBy: res.locals.session?.email }, clinic.id, null, getRequestIp(req));
     res.json({ invoice, clinicId: clinic.id, clinicName: clinic.name });
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : 'Не удалось выставить счёт' });
@@ -707,7 +747,7 @@ app.delete('/api/clinics/:id', requireAuth, async (req, res) => {
 
   try {
     await deleteClinicCascade(client, clinic.id);
-    await writeSuperLog(client, 'clinic_deleted', { clinicId: clinic.id, clinicName: clinic.name, deletedBy: res.locals.session?.email }, null);
+    await writeSuperLog(client, 'clinic_deleted', { clinicId: clinic.id, clinicName: clinic.name, deletedBy: res.locals.session?.email }, null, null, getRequestIp(req));
     res.json({ id: clinic.id, deleted: true });
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : 'Не удалось удалить клинику' });
@@ -752,11 +792,18 @@ app.get('/api/finances', requireAuth, async (_req, res) => {
 app.get('/api/logs', requireAuth, async (_req, res) => {
   const client = getSupabase();
   if (!client) {
-    res.json({ logs: [] });
+    res.status(500).json({ error: 'Supabase service role не настроен. Проверьте SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY в Vercel.' });
     return;
   }
 
-  const { data } = await client.from('super_logs').select('*').order('created_at', { ascending: false }).limit(200);
+  const { data, error } = await client.from('super_logs').select('*').order('created_at', { ascending: false }).limit(200);
+  if (error) {
+    res.status(500).json({
+      error: `Не удалось загрузить super_logs: ${error.message}. Проверьте, что таблица super_logs создана в Supabase.`
+    });
+    return;
+  }
+
   res.json({
     logs: (data || []).map((log: Record<string, unknown>) => ({
       id: String(log.id),

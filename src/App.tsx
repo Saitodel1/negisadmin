@@ -1047,6 +1047,21 @@ function LogsPage() {
     queryKey: ['logs'],
     queryFn: () => api<{ logs: Array<{ id: string; time: string; clinic: string; user: string; action: string; details: string; ip: string }> }>('/api/logs')
   });
+
+  if (logs.isError) {
+    return (
+      <section className="page-stack">
+        <section className="neu panel">
+          <PanelHeader title="Логи" />
+          <div className="empty-state">
+            <h3>Не удалось загрузить логи</h3>
+            <p>{logs.error instanceof Error ? logs.error.message : 'Проверьте таблицу super_logs и переменные Supabase в Vercel.'}</p>
+          </div>
+        </section>
+      </section>
+    );
+  }
+
   return (
     <DataPage
       title="Логи"
