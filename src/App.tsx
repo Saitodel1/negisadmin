@@ -251,7 +251,8 @@ function LoginPage() {
   useEffect(() => {
     let frame = 0;
     const cursor = { x: cursorTarget.current.x, y: cursorTarget.current.y };
-    const grid = { x: cursorTarget.current.x, y: cursorTarget.current.y };
+    const gridCanvas = document.createElement('canvas');
+    const gridContext = gridCanvas.getContext('2d');
 
     const drawDiamond = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
       ctx.beginPath();
@@ -263,104 +264,121 @@ function LoginPage() {
       ctx.fill();
     };
 
+    const syncCanvasSize = (canvas: HTMLCanvasElement, width: number, height: number, ratio: number) => {
+      const pixelWidth = Math.floor(width * ratio);
+      const pixelHeight = Math.floor(height * ratio);
+      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+        canvas.width = pixelWidth;
+        canvas.height = pixelHeight;
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+      }
+    };
+
+    const drawGridLayer = (ctx: CanvasRenderingContext2D, width: number, height: number, ratio: number, time: number) => {
+      syncCanvasSize(gridCanvas, width, height, ratio);
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineWidth = 1;
+      ctx.shadowColor = 'rgba(0, 238, 255, 0.85)';
+      ctx.shadowBlur = 11;
+
+      const cell = Math.max(44, Math.min(58, width * 0.038));
+      const offsetX = (time * 18) % cell;
+      const offsetY = (time * 9) % cell;
+
+      for (let x = -cell * 2 - offsetX; x < width + cell * 2; x += cell) {
+        const alpha = 0.17 + Math.sin(time * 2.7 + x * 0.018) * 0.05;
+        ctx.strokeStyle = `rgba(0, 220, 255, ${alpha})`;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+
+      for (let y = -cell * 2 - offsetY; y < height + cell * 2; y += cell) {
+        const alpha = 0.18 + Math.cos(time * 2.4 + y * 0.018) * 0.05;
+        ctx.strokeStyle = `rgba(0, 238, 255, ${alpha})`;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+
+      const sweepX = (time * 220) % (width + cell * 4) - cell * 2;
+      const sweep = ctx.createLinearGradient(sweepX - cell * 1.2, 0, sweepX + cell * 1.5, 0);
+      sweep.addColorStop(0, 'rgba(0, 238, 255, 0)');
+      sweep.addColorStop(0.5, 'rgba(126, 248, 255, 0.32)');
+      sweep.addColorStop(1, 'rgba(0, 238, 255, 0)');
+      ctx.fillStyle = sweep;
+      ctx.beginPath();
+      ctx.moveTo(sweepX - cell, 0);
+      ctx.lineTo(sweepX + cell * 1.35, 0);
+      ctx.lineTo(sweepX - cell * 0.25, height);
+      ctx.lineTo(sweepX - cell * 2.6, height);
+      ctx.closePath();
+      ctx.fill();
+
+      for (let x = -cell * 2 - offsetX; x < width + cell * 2; x += cell) {
+        for (let y = -cell * 2 - offsetY; y < height + cell * 2; y += cell) {
+          const wave = 0.62 + Math.sin(time * 5.5 + x * 0.025 + y * 0.018) * 0.38;
+          ctx.fillStyle = `rgba(0, 239, 255, ${0.28 + wave * 0.42})`;
+          ctx.shadowBlur = 8 + wave * 14;
+          drawDiamond(ctx, x, y, 3.2 + wave * 1.9);
+        }
+      }
+
+      ctx.restore();
+    };
+
     const followCursor = () => {
       cursor.x += (cursorTarget.current.x - cursor.x) * 0.32;
       cursor.y += (cursorTarget.current.y - cursor.y) * 0.32;
       entryRef.current?.style.setProperty('--cursor-x', `${cursor.x}%`);
       entryRef.current?.style.setProperty('--cursor-y', `${cursor.y}%`);
-      grid.x += (cursorTarget.current.x - grid.x) * 0.13;
-      grid.y += (cursorTarget.current.y - grid.y) * 0.13;
 
       const canvas = hudCanvasRef.current;
       const context = canvas?.getContext('2d');
       const rect = entryRef.current?.getBoundingClientRect();
-      if (canvas && context && rect) {
+      if (canvas && context && rect && gridContext) {
         const ratio = window.devicePixelRatio || 1;
         const width = Math.max(1, Math.floor(rect.width));
         const height = Math.max(1, Math.floor(rect.height));
-        if (canvas.width !== Math.floor(width * ratio) || canvas.height !== Math.floor(height * ratio)) {
-          canvas.width = Math.floor(width * ratio);
-          canvas.height = Math.floor(height * ratio);
-          canvas.style.width = `${width}px`;
-          canvas.style.height = `${height}px`;
-        }
-
-        context.setTransform(ratio, 0, 0, ratio, 0, 0);
-        context.clearRect(0, 0, width, height);
+        syncCanvasSize(canvas, width, height, ratio);
 
         const time = performance.now() * 0.001;
-        const cell = Math.max(42, Math.min(58, width * 0.038));
-        const columns = 8;
-        const rows = 6;
-        const gridWidth = cell * columns;
-        const gridHeight = cell * rows;
-        const originX = (grid.x / 100) * width - cell * 1.2;
-        const originY = (grid.y / 100) * height - cell * 1.25;
-        const driftX = Math.sin(time * 1.7) * 5;
-        const driftY = Math.cos(time * 1.35) * 4;
-        const startX = Math.min(width - gridWidth - 28, Math.max(28, originX + driftX));
-        const startY = Math.min(height - gridHeight - 28, Math.max(90, originY + driftY));
+        drawGridLayer(gridContext, width, height, ratio, time);
+        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        context.clearRect(0, 0, width, height);
+        context.save();
+
+        const cursorX = (cursor.x / 100) * width;
+        const cursorY = (cursor.y / 100) * height;
+        const radius = Math.max(180, Math.min(310, width * 0.22));
+        const reveal = context.createRadialGradient(cursorX, cursorY, 18, cursorX, cursorY, radius);
+        reveal.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        reveal.addColorStop(0.52, 'rgba(255, 255, 255, 0.74)');
+        reveal.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        context.fillStyle = reveal;
+        context.fillRect(0, 0, width, height);
+        context.globalCompositeOperation = 'source-in';
+        context.drawImage(gridCanvas, 0, 0, width, height);
+        context.restore();
 
         context.save();
         context.globalCompositeOperation = 'lighter';
-        context.lineWidth = 1;
-        context.shadowBlur = 15;
-        context.shadowColor = 'rgba(0, 238, 255, 0.85)';
-
-        for (let row = 0; row <= rows; row += 1) {
-          const y = startY + row * cell;
-          const pulse = 0.38 + Math.sin(time * 3.1 + row * 0.55) * 0.14;
-          context.strokeStyle = `rgba(0, 229, 255, ${pulse})`;
-          context.beginPath();
-          context.moveTo(startX, y);
-          context.lineTo(startX + gridWidth + cell * 0.55, y);
-          context.stroke();
-        }
-
-        for (let column = 0; column <= columns; column += 1) {
-          const x = startX + column * cell;
-          const pulse = 0.28 + Math.cos(time * 2.8 + column * 0.48) * 0.12;
-          context.strokeStyle = `rgba(0, 210, 255, ${pulse})`;
-          context.beginPath();
-          context.moveTo(x, startY);
-          context.lineTo(x, startY + gridHeight + cell * 0.42);
-          context.stroke();
-        }
-
-        const sweep = ((time * 0.52) % 1) * (gridWidth + cell * 1.5) - cell * 0.75;
-        const sweepGradient = context.createLinearGradient(startX + sweep - cell, startY, startX + sweep + cell * 1.3, startY);
-        sweepGradient.addColorStop(0, 'rgba(0, 238, 255, 0)');
-        sweepGradient.addColorStop(0.48, 'rgba(0, 238, 255, 0.34)');
-        sweepGradient.addColorStop(1, 'rgba(149, 251, 255, 0)');
-        context.fillStyle = sweepGradient;
+        context.strokeStyle = 'rgba(132, 250, 255, 0.92)';
+        context.lineWidth = 1.15;
+        context.shadowBlur = 18;
+        context.shadowColor = 'rgba(0, 238, 255, 0.88)';
         context.beginPath();
-        context.moveTo(startX + sweep - cell * 0.7, startY - cell * 0.35);
-        context.lineTo(startX + sweep + cell * 1.35, startY - cell * 0.35);
-        context.lineTo(startX + sweep + cell * 0.4, startY + gridHeight + cell * 0.35);
-        context.lineTo(startX + sweep - cell * 1.65, startY + gridHeight + cell * 0.35);
-        context.closePath();
-        context.fill();
-
-        for (let row = 0; row <= rows; row += 1) {
-          for (let column = 0; column <= columns; column += 1) {
-            const x = startX + column * cell;
-            const y = startY + row * cell;
-            const wave = 0.7 + Math.sin(time * 5.2 - column * 0.75 - row * 0.52) * 0.3;
-            context.fillStyle = `rgba(0, 239, 255, ${0.58 + wave * 0.36})`;
-            context.shadowBlur = 10 + wave * 14;
-            drawDiamond(context, x, y, 4 + wave * 2.1);
-          }
-        }
-
-        context.strokeStyle = 'rgba(130, 250, 255, 0.92)';
-        context.lineWidth = 1.2;
-        context.shadowBlur = 22;
-        context.beginPath();
-        context.arc(startX, startY, 20 + Math.sin(time * 4) * 2.5, 0, Math.PI * 2);
+        context.arc(cursorX, cursorY, 19 + Math.sin(time * 5.2) * 2, 0, Math.PI * 2);
         context.stroke();
         context.beginPath();
-        context.moveTo(startX - 88, startY);
-        context.lineTo(startX + 34, startY);
+        context.moveTo(cursorX - 86, cursorY);
+        context.lineTo(cursorX + 34, cursorY);
         context.stroke();
         context.restore();
       }
