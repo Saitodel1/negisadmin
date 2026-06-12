@@ -216,6 +216,7 @@ function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showLogin, setShowLogin] = useState(false);
+  const [entryLoading, setEntryLoading] = useState(false);
   const [cursor, setCursor] = useState({ x: 68, y: 48 });
   const labels = {
     welcome: '\u0414\u043e\u0431\u0440\u043e \u043f\u043e\u0436\u0430\u043b\u043e\u0432\u0430\u0442\u044c \u0432 Negis Control',
@@ -270,7 +271,18 @@ function LoginPage() {
               <span key={index} />
             ))}
           </div>
-          <button className="admin-core-button" type="button" onClick={() => setShowLogin(true)} aria-label={labels.openLogin}>
+          <button
+            className={`admin-core-button ${entryLoading ? 'is-loading' : ''}`}
+            type="button"
+            onClick={() => {
+              setEntryLoading(true);
+              window.setTimeout(() => {
+                setShowLogin(true);
+                setEntryLoading(false);
+              }, 520);
+            }}
+            aria-label={labels.openLogin}
+          >
             <span className="core-ring" aria-hidden="true" />
             <span className="core-hex" aria-hidden="true" />
             <span className="core-brand">
