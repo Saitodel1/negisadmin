@@ -2197,11 +2197,14 @@ th + th {
 }
 
 .admin-core-button.is-loading .core-ring {
-  inset: -13px;
+  inset: -2px;
   border: 0;
-  background: conic-gradient(from 0deg, transparent 0 64%, #00eaff 76%, rgba(82, 165, 255, 0.65) 88%, transparent 100%);
-  filter: blur(0.3px) drop-shadow(0 0 22px rgba(0, 222, 255, 0.78));
-  animation: core-ring-spin 0.9s linear infinite;
+  background: conic-gradient(from 0deg, transparent 0 78%, #8df8ff 83%, #00eaff 88%, transparent 94% 100%);
+  filter: drop-shadow(0 0 10px rgba(0, 238, 255, 0.95));
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  padding: 2px;
+  animation: core-ring-spin 0.84s linear infinite;
 }
 
 .admin-core-button.is-loading {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -217,7 +217,8 @@ function LoginPage() {
   const [password, setPassword] = useState('');
   const [showLogin, setShowLogin] = useState(false);
   const [entryLoading, setEntryLoading] = useState(false);
-  const [cursor, setCursor] = useState({ x: 68, y: 48 });
+  const entryRef = useRef<HTMLElement | null>(null);
+  const cursorTarget = useRef({ x: 68, y: 48 });
   const labels = {
     welcome: '\u0414\u043e\u0431\u0440\u043e \u043f\u043e\u0436\u0430\u043b\u043e\u0432\u0430\u0442\u044c \u0432 Negis Control',
     sections: '\u0420\u0430\u0437\u0434\u0435\u043b\u044b Negis Control',
@@ -246,16 +247,32 @@ function LoginPage() {
     onError: (error) => toast.error(error.message)
   });
 
+  useEffect(() => {
+    let frame = 0;
+    const cursor = { x: cursorTarget.current.x, y: cursorTarget.current.y };
+    const followCursor = () => {
+      cursor.x += (cursorTarget.current.x - cursor.x) * 0.32;
+      cursor.y += (cursorTarget.current.y - cursor.y) * 0.32;
+      entryRef.current?.style.setProperty('--cursor-x', `${cursor.x}%`);
+      entryRef.current?.style.setProperty('--cursor-y', `${cursor.y}%`);
+      frame = window.requestAnimationFrame(followCursor);
+    };
+
+    frame = window.requestAnimationFrame(followCursor);
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
   return (
     <main
+      ref={entryRef}
       className={`login-screen admin-entry ${showLogin ? 'is-login-open' : ''}`}
-      style={{ '--cursor-x': `${cursor.x}%`, '--cursor-y': `${cursor.y}%` } as CSSProperties}
+      style={{ '--cursor-x': '68%', '--cursor-y': '48%' } as CSSProperties}
       onPointerMove={(event) => {
         const rect = event.currentTarget.getBoundingClientRect();
-        setCursor({
+        cursorTarget.current = {
           x: ((event.clientX - rect.left) / rect.width) * 100,
           y: ((event.clientY - rect.top) / rect.height) * 100
-        });
+        };
       }}
     >
       {!showLogin ? (
