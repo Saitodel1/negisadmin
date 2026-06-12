@@ -218,6 +218,7 @@ function LoginPage() {
   const [showLogin, setShowLogin] = useState(false);
   const [entryLoading, setEntryLoading] = useState(false);
   const entryRef = useRef<HTMLElement | null>(null);
+  const hudCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const cursorTarget = useRef({ x: 68, y: 48 });
   const labels = {
     welcome: '\u0414\u043e\u0431\u0440\u043e \u043f\u043e\u0436\u0430\u043b\u043e\u0432\u0430\u0442\u044c \u0432 Negis Control',
@@ -250,11 +251,120 @@ function LoginPage() {
   useEffect(() => {
     let frame = 0;
     const cursor = { x: cursorTarget.current.x, y: cursorTarget.current.y };
+    const grid = { x: cursorTarget.current.x, y: cursorTarget.current.y };
+
+    const drawDiamond = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+      ctx.beginPath();
+      ctx.moveTo(x, y - size);
+      ctx.lineTo(x + size, y);
+      ctx.lineTo(x, y + size);
+      ctx.lineTo(x - size, y);
+      ctx.closePath();
+      ctx.fill();
+    };
+
     const followCursor = () => {
       cursor.x += (cursorTarget.current.x - cursor.x) * 0.32;
       cursor.y += (cursorTarget.current.y - cursor.y) * 0.32;
       entryRef.current?.style.setProperty('--cursor-x', `${cursor.x}%`);
       entryRef.current?.style.setProperty('--cursor-y', `${cursor.y}%`);
+      grid.x += (cursorTarget.current.x - grid.x) * 0.13;
+      grid.y += (cursorTarget.current.y - grid.y) * 0.13;
+
+      const canvas = hudCanvasRef.current;
+      const context = canvas?.getContext('2d');
+      const rect = entryRef.current?.getBoundingClientRect();
+      if (canvas && context && rect) {
+        const ratio = window.devicePixelRatio || 1;
+        const width = Math.max(1, Math.floor(rect.width));
+        const height = Math.max(1, Math.floor(rect.height));
+        if (canvas.width !== Math.floor(width * ratio) || canvas.height !== Math.floor(height * ratio)) {
+          canvas.width = Math.floor(width * ratio);
+          canvas.height = Math.floor(height * ratio);
+          canvas.style.width = `${width}px`;
+          canvas.style.height = `${height}px`;
+        }
+
+        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        context.clearRect(0, 0, width, height);
+
+        const time = performance.now() * 0.001;
+        const cell = Math.max(42, Math.min(58, width * 0.038));
+        const columns = 8;
+        const rows = 6;
+        const gridWidth = cell * columns;
+        const gridHeight = cell * rows;
+        const originX = (grid.x / 100) * width - cell * 1.2;
+        const originY = (grid.y / 100) * height - cell * 1.25;
+        const driftX = Math.sin(time * 1.7) * 5;
+        const driftY = Math.cos(time * 1.35) * 4;
+        const startX = Math.min(width - gridWidth - 28, Math.max(28, originX + driftX));
+        const startY = Math.min(height - gridHeight - 28, Math.max(90, originY + driftY));
+
+        context.save();
+        context.globalCompositeOperation = 'lighter';
+        context.lineWidth = 1;
+        context.shadowBlur = 15;
+        context.shadowColor = 'rgba(0, 238, 255, 0.85)';
+
+        for (let row = 0; row <= rows; row += 1) {
+          const y = startY + row * cell;
+          const pulse = 0.38 + Math.sin(time * 3.1 + row * 0.55) * 0.14;
+          context.strokeStyle = `rgba(0, 229, 255, ${pulse})`;
+          context.beginPath();
+          context.moveTo(startX, y);
+          context.lineTo(startX + gridWidth + cell * 0.55, y);
+          context.stroke();
+        }
+
+        for (let column = 0; column <= columns; column += 1) {
+          const x = startX + column * cell;
+          const pulse = 0.28 + Math.cos(time * 2.8 + column * 0.48) * 0.12;
+          context.strokeStyle = `rgba(0, 210, 255, ${pulse})`;
+          context.beginPath();
+          context.moveTo(x, startY);
+          context.lineTo(x, startY + gridHeight + cell * 0.42);
+          context.stroke();
+        }
+
+        const sweep = ((time * 0.52) % 1) * (gridWidth + cell * 1.5) - cell * 0.75;
+        const sweepGradient = context.createLinearGradient(startX + sweep - cell, startY, startX + sweep + cell * 1.3, startY);
+        sweepGradient.addColorStop(0, 'rgba(0, 238, 255, 0)');
+        sweepGradient.addColorStop(0.48, 'rgba(0, 238, 255, 0.34)');
+        sweepGradient.addColorStop(1, 'rgba(149, 251, 255, 0)');
+        context.fillStyle = sweepGradient;
+        context.beginPath();
+        context.moveTo(startX + sweep - cell * 0.7, startY - cell * 0.35);
+        context.lineTo(startX + sweep + cell * 1.35, startY - cell * 0.35);
+        context.lineTo(startX + sweep + cell * 0.4, startY + gridHeight + cell * 0.35);
+        context.lineTo(startX + sweep - cell * 1.65, startY + gridHeight + cell * 0.35);
+        context.closePath();
+        context.fill();
+
+        for (let row = 0; row <= rows; row += 1) {
+          for (let column = 0; column <= columns; column += 1) {
+            const x = startX + column * cell;
+            const y = startY + row * cell;
+            const wave = 0.7 + Math.sin(time * 5.2 - column * 0.75 - row * 0.52) * 0.3;
+            context.fillStyle = `rgba(0, 239, 255, ${0.58 + wave * 0.36})`;
+            context.shadowBlur = 10 + wave * 14;
+            drawDiamond(context, x, y, 4 + wave * 2.1);
+          }
+        }
+
+        context.strokeStyle = 'rgba(130, 250, 255, 0.92)';
+        context.lineWidth = 1.2;
+        context.shadowBlur = 22;
+        context.beginPath();
+        context.arc(startX, startY, 20 + Math.sin(time * 4) * 2.5, 0, Math.PI * 2);
+        context.stroke();
+        context.beginPath();
+        context.moveTo(startX - 88, startY);
+        context.lineTo(startX + 34, startY);
+        context.stroke();
+        context.restore();
+      }
+
       frame = window.requestAnimationFrame(followCursor);
     };
 
@@ -283,12 +393,7 @@ function LoginPage() {
             <a href="#security">{labels.security}</a>
             <a href="#contacts">{labels.contacts}</a>
           </nav>
-          <div className="neon-grid" aria-hidden="true">
-            <i className="grid-sweep" />
-            {Array.from({ length: 48 }, (_, index) => (
-              <span key={index} style={{ '--node-delay': `${(index % 8) * 0.045 + Math.floor(index / 8) * 0.07}s` } as CSSProperties} />
-            ))}
-          </div>
+          <canvas ref={hudCanvasRef} className="hud-canvas" aria-hidden="true" />
           <button
             className={`admin-core-button ${entryLoading ? 'is-loading' : ''}`}
             type="button"
