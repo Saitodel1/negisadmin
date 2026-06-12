@@ -251,12 +251,6 @@ function LoginPage() {
     >
       {!showLogin ? (
         <section className="admin-landing" aria-label="Negis Control">
-          <nav className="admin-entry-nav" aria-label={labels.sections}>
-            <a href="#platform">{labels.platform}</a>
-            <a href="#features">{labels.features}</a>
-            <a href="#security">{labels.security}</a>
-            <a href="#contacts">{labels.contacts}</a>
-          </nav>
           <button
             className={`admin-core-button ${entryLoading ? 'is-loading' : ''}`}
             type="button"

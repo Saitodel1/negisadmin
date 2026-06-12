@@ -2056,6 +2056,17 @@ th + th {
     min-height: 100vh;
     padding: 120px 18px 72px;
   }
+
+  .core-brand .core-tape {
+    min-width: min(300px, 78vw);
+    padding: 12px 18px;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+  }
+
+  .core-brand .core-tape::before {
+    inset: 7px 28px;
+  }
 }
 
 /* Crysis-like cursor grid and calm central seal. */
@@ -2132,23 +2143,41 @@ th + th {
 
 .admin-core-button {
   background:
-    radial-gradient(circle at 48% 38%, rgba(39, 47, 58, 0.9), rgba(16, 22, 31, 0.98) 56%, #070a0f 100%);
+    radial-gradient(circle at 48% 34%, rgba(57, 66, 80, 0.82), rgba(18, 24, 33, 0.98) 48%, #05070b 100%);
   box-shadow:
-    inset -34px -38px 76px rgba(0, 0, 0, 0.6),
-    inset 18px 18px 42px rgba(255, 255, 255, 0.045),
-    0 46px 95px rgba(0, 0, 0, 0.56);
+    inset -42px -48px 86px rgba(0, 0, 0, 0.74),
+    inset 22px 24px 52px rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+    0 30px 0 rgba(0, 0, 0, 0.18),
+    0 62px 110px rgba(0, 0, 0, 0.68);
 }
 
 .admin-core-button::before {
-  background: conic-gradient(from 225deg, rgba(104, 119, 139, 0.5), rgba(189, 204, 225, 0.28), rgba(47, 55, 68, 0.34), rgba(104, 119, 139, 0.48));
-  opacity: 0.8;
+  inset: -5px;
+  background: conic-gradient(from 225deg, rgba(70, 78, 91, 0.96), rgba(198, 211, 230, 0.42), rgba(21, 27, 36, 0.88), rgba(96, 108, 126, 0.76), rgba(70, 78, 91, 0.96));
+  opacity: 0.95;
+}
+
+.admin-core-button::after {
+  content: '';
+  position: absolute;
+  inset: 40px;
+  border-radius: inherit;
+  border: 1px solid rgba(210, 220, 235, 0.18);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.78),
+    inset 0 0 34px rgba(255, 255, 255, 0.035),
+    0 0 0 1px rgba(255, 255, 255, 0.035);
+  pointer-events: none;
 }
 
 .core-ring {
-  border-color: rgba(149, 166, 190, 0.34);
+  inset: -9px;
+  border-color: rgba(120, 132, 150, 0.62);
   box-shadow:
-    inset 0 0 34px rgba(255, 255, 255, 0.035),
-    0 0 26px rgba(0, 0, 0, 0.28);
+    inset 0 0 30px rgba(255, 255, 255, 0.026),
+    0 0 0 1px rgba(0, 0, 0, 0.72),
+    0 0 32px rgba(0, 0, 0, 0.52);
 }
 
 .core-hex {
@@ -2156,8 +2185,9 @@ th + th {
 }
 
 .core-brand {
-  gap: 28px;
-  transform: translateY(12px);
+  z-index: 1;
+  gap: 30px;
+  transform: translateY(10px);
 }
 
 .core-brand strong {
@@ -2172,33 +2202,38 @@ th + th {
 
 .core-brand .core-tape {
   position: relative;
-  min-width: min(390px, 72vw);
-  padding: 10px 28px;
+  min-width: min(430px, 72vw);
+  padding: 13px 32px;
   overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.58);
+  border: 1px solid rgba(0, 0, 0, 0.72);
   color: transparent;
   background:
-    repeating-linear-gradient(135deg, #f0bd24 0 18px, #111111 18px 34px),
-    linear-gradient(180deg, #ffd047, #d99b11);
+    linear-gradient(90deg, rgba(0, 0, 0, 0.2), transparent 12%, transparent 88%, rgba(0, 0, 0, 0.22)),
+    repeating-linear-gradient(135deg, #f5c43a 0 22px, #111111 22px 39px);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.32),
     inset 0 -1px 0 rgba(0, 0, 0, 0.44),
     0 10px 18px rgba(0, 0, 0, 0.35);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 900;
-  letter-spacing: 0.34em;
+  letter-spacing: 0.24em;
   text-shadow: none;
 }
 
 .core-brand .core-tape::before {
   content: 'CONTROL PLATFORM';
   position: absolute;
-  inset: 0;
+  inset: 7px 58px;
   display: grid;
   place-items: center;
-  color: #101010;
-  background: rgba(255, 196, 35, 0.86);
-  mix-blend-mode: screen;
+  color: #ffd84c;
+  background: rgba(8, 9, 10, 0.82);
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 3px 9px rgba(0, 0, 0, 0.34);
+  font-weight: 900;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
 }
 
 .core-action {
