@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -217,9 +217,6 @@ function LoginPage() {
   const [password, setPassword] = useState('');
   const [showLogin, setShowLogin] = useState(false);
   const [entryLoading, setEntryLoading] = useState(false);
-  const entryRef = useRef<HTMLElement | null>(null);
-  const hudCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const cursorTarget = useRef({ x: 68, y: 48 });
   const labels = {
     welcome: '\u0414\u043e\u0431\u0440\u043e \u043f\u043e\u0436\u0430\u043b\u043e\u0432\u0430\u0442\u044c \u0432 Negis Control',
     sections: '\u0420\u0430\u0437\u0434\u0435\u043b\u044b Negis Control',
@@ -248,160 +245,9 @@ function LoginPage() {
     onError: (error) => toast.error(error.message)
   });
 
-  useEffect(() => {
-    let frame = 0;
-    const cursor = { x: cursorTarget.current.x, y: cursorTarget.current.y };
-    const gridCanvas = document.createElement('canvas');
-    const gridContext = gridCanvas.getContext('2d');
-
-    const drawDiamond = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
-      ctx.beginPath();
-      ctx.moveTo(x, y - size);
-      ctx.lineTo(x + size, y);
-      ctx.lineTo(x, y + size);
-      ctx.lineTo(x - size, y);
-      ctx.closePath();
-      ctx.fill();
-    };
-
-    const syncCanvasSize = (canvas: HTMLCanvasElement, width: number, height: number, ratio: number) => {
-      const pixelWidth = Math.floor(width * ratio);
-      const pixelHeight = Math.floor(height * ratio);
-      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
-        canvas.width = pixelWidth;
-        canvas.height = pixelHeight;
-        canvas.style.width = `${width}px`;
-        canvas.style.height = `${height}px`;
-      }
-    };
-
-    const drawGridLayer = (ctx: CanvasRenderingContext2D, width: number, height: number, ratio: number, time: number) => {
-      syncCanvasSize(gridCanvas, width, height, ratio);
-      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      ctx.clearRect(0, 0, width, height);
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.lineWidth = 1;
-      ctx.shadowColor = 'rgba(0, 238, 255, 0.85)';
-      ctx.shadowBlur = 11;
-
-      const cell = Math.max(44, Math.min(58, width * 0.038));
-      const offsetX = (time * 18) % cell;
-      const offsetY = (time * 9) % cell;
-
-      for (let x = -cell * 2 - offsetX; x < width + cell * 2; x += cell) {
-        const alpha = 0.17 + Math.sin(time * 2.7 + x * 0.018) * 0.05;
-        ctx.strokeStyle = `rgba(0, 220, 255, ${alpha})`;
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.stroke();
-      }
-
-      for (let y = -cell * 2 - offsetY; y < height + cell * 2; y += cell) {
-        const alpha = 0.18 + Math.cos(time * 2.4 + y * 0.018) * 0.05;
-        ctx.strokeStyle = `rgba(0, 238, 255, ${alpha})`;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
-      }
-
-      const sweepX = (time * 220) % (width + cell * 4) - cell * 2;
-      const sweep = ctx.createLinearGradient(sweepX - cell * 1.2, 0, sweepX + cell * 1.5, 0);
-      sweep.addColorStop(0, 'rgba(0, 238, 255, 0)');
-      sweep.addColorStop(0.5, 'rgba(126, 248, 255, 0.32)');
-      sweep.addColorStop(1, 'rgba(0, 238, 255, 0)');
-      ctx.fillStyle = sweep;
-      ctx.beginPath();
-      ctx.moveTo(sweepX - cell, 0);
-      ctx.lineTo(sweepX + cell * 1.35, 0);
-      ctx.lineTo(sweepX - cell * 0.25, height);
-      ctx.lineTo(sweepX - cell * 2.6, height);
-      ctx.closePath();
-      ctx.fill();
-
-      for (let x = -cell * 2 - offsetX; x < width + cell * 2; x += cell) {
-        for (let y = -cell * 2 - offsetY; y < height + cell * 2; y += cell) {
-          const wave = 0.62 + Math.sin(time * 5.5 + x * 0.025 + y * 0.018) * 0.38;
-          ctx.fillStyle = `rgba(0, 239, 255, ${0.28 + wave * 0.42})`;
-          ctx.shadowBlur = 8 + wave * 14;
-          drawDiamond(ctx, x, y, 3.2 + wave * 1.9);
-        }
-      }
-
-      ctx.restore();
-    };
-
-    const followCursor = () => {
-      cursor.x += (cursorTarget.current.x - cursor.x) * 0.32;
-      cursor.y += (cursorTarget.current.y - cursor.y) * 0.32;
-      entryRef.current?.style.setProperty('--cursor-x', `${cursor.x}%`);
-      entryRef.current?.style.setProperty('--cursor-y', `${cursor.y}%`);
-
-      const canvas = hudCanvasRef.current;
-      const context = canvas?.getContext('2d');
-      const rect = entryRef.current?.getBoundingClientRect();
-      if (canvas && context && rect && gridContext) {
-        const ratio = window.devicePixelRatio || 1;
-        const width = Math.max(1, Math.floor(rect.width));
-        const height = Math.max(1, Math.floor(rect.height));
-        syncCanvasSize(canvas, width, height, ratio);
-
-        const time = performance.now() * 0.001;
-        drawGridLayer(gridContext, width, height, ratio, time);
-        context.setTransform(ratio, 0, 0, ratio, 0, 0);
-        context.clearRect(0, 0, width, height);
-        context.save();
-
-        const cursorX = (cursor.x / 100) * width;
-        const cursorY = (cursor.y / 100) * height;
-        const radius = Math.max(180, Math.min(310, width * 0.22));
-        const reveal = context.createRadialGradient(cursorX, cursorY, 18, cursorX, cursorY, radius);
-        reveal.addColorStop(0, 'rgba(255, 255, 255, 1)');
-        reveal.addColorStop(0.52, 'rgba(255, 255, 255, 0.74)');
-        reveal.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        context.fillStyle = reveal;
-        context.fillRect(0, 0, width, height);
-        context.globalCompositeOperation = 'source-in';
-        context.drawImage(gridCanvas, 0, 0, width, height);
-        context.restore();
-
-        context.save();
-        context.globalCompositeOperation = 'lighter';
-        context.strokeStyle = 'rgba(132, 250, 255, 0.92)';
-        context.lineWidth = 1.15;
-        context.shadowBlur = 18;
-        context.shadowColor = 'rgba(0, 238, 255, 0.88)';
-        context.beginPath();
-        context.arc(cursorX, cursorY, 19 + Math.sin(time * 5.2) * 2, 0, Math.PI * 2);
-        context.stroke();
-        context.beginPath();
-        context.moveTo(cursorX - 86, cursorY);
-        context.lineTo(cursorX + 34, cursorY);
-        context.stroke();
-        context.restore();
-      }
-
-      frame = window.requestAnimationFrame(followCursor);
-    };
-
-    frame = window.requestAnimationFrame(followCursor);
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
-
   return (
     <main
-      ref={entryRef}
       className={`login-screen admin-entry ${showLogin ? 'is-login-open' : ''}`}
-      style={{ '--cursor-x': '68%', '--cursor-y': '48%' } as CSSProperties}
-      onPointerMove={(event) => {
-        const rect = event.currentTarget.getBoundingClientRect();
-        cursorTarget.current = {
-          x: ((event.clientX - rect.left) / rect.width) * 100,
-          y: ((event.clientY - rect.top) / rect.height) * 100
-        };
-      }}
     >
       {!showLogin ? (
         <section className="admin-landing" aria-label="Negis Control">
@@ -411,7 +257,6 @@ function LoginPage() {
             <a href="#security">{labels.security}</a>
             <a href="#contacts">{labels.contacts}</a>
           </nav>
-          <canvas ref={hudCanvasRef} className="hud-canvas" aria-hidden="true" />
           <button
             className={`admin-core-button ${entryLoading ? 'is-loading' : ''}`}
             type="button"
