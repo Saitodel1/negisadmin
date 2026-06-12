@@ -15,6 +15,375 @@
   --pressed: inset 4px 4px 8px #c5cad4, inset -4px -4px 8px #ffffff;
 }
 
+/* Dark command entry */
+.admin-entry {
+  --cursor-x: 68%;
+  --cursor-y: 48%;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at var(--cursor-x) var(--cursor-y), rgba(0, 224, 255, 0.18), transparent 18rem),
+    radial-gradient(circle at 50% 48%, rgba(43, 62, 88, 0.45), transparent 28rem),
+    linear-gradient(135deg, #060b12 0%, #101827 52%, #070b12 100%);
+  color: #dceaff;
+  cursor: crosshair;
+}
+
+.admin-entry::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(rgba(22, 240, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(22, 240, 255, 0.05) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(circle at var(--cursor-x) var(--cursor-y), #000 0 18rem, transparent 34rem);
+  animation: entry-grid-drift 18s linear infinite;
+}
+
+.admin-entry::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 30%, rgba(2, 6, 12, 0.34) 56%, rgba(1, 3, 8, 0.74) 100%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035), transparent 18%, transparent 82%, rgba(255, 255, 255, 0.025));
+  pointer-events: none;
+}
+
+.admin-entry .admin-landing {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  padding: 96px 32px 74px;
+}
+
+.admin-entry-nav {
+  position: absolute;
+  top: 54px;
+  left: clamp(28px, 5vw, 70px);
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(24px, 4vw, 52px);
+}
+
+.admin-entry-nav a {
+  color: rgba(220, 234, 255, 0.7);
+  font-size: 14px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+
+.admin-entry-nav a:hover {
+  color: #6ff7ff;
+  text-shadow: 0 0 18px rgba(44, 224, 255, 0.65);
+}
+
+.neon-grid {
+  position: absolute;
+  left: var(--cursor-x);
+  top: var(--cursor-y);
+  z-index: 1;
+  width: min(34vw, 360px);
+  aspect-ratio: 8 / 6;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  transform: translate(-4%, -48%);
+  pointer-events: none;
+  filter: drop-shadow(0 0 14px rgba(0, 222, 255, 0.45));
+  opacity: 0.92;
+  transition: left 0.08s linear, top 0.08s linear;
+}
+
+.neon-grid span {
+  position: relative;
+  border-top: 1px solid rgba(0, 224, 255, 0.38);
+  border-left: 1px solid rgba(0, 224, 255, 0.28);
+}
+
+.neon-grid span::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  width: 9px;
+  height: 9px;
+  background: #00e7ff;
+  transform: rotate(45deg);
+  opacity: 0.55;
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.9);
+}
+
+.admin-core-button {
+  position: relative;
+  z-index: 2;
+  width: clamp(310px, 45vw, 560px);
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 44% 42%, rgba(31, 48, 70, 0.88), rgba(9, 15, 26, 0.96) 62%, #060a10 100%);
+  color: #dceaff;
+  box-shadow:
+    inset -28px -30px 70px rgba(0, 0, 0, 0.52),
+    inset 16px 18px 44px rgba(148, 182, 225, 0.08),
+    0 38px 84px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+
+.admin-core-button::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: conic-gradient(from 230deg, rgba(130, 169, 215, 0.46), rgba(0, 224, 255, 0.95), rgba(0, 224, 255, 0.05) 35%, rgba(130, 169, 215, 0.32) 100%);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  padding: 2px;
+  opacity: 0.95;
+}
+
+.admin-core-button:hover .core-ring,
+.admin-core-button:focus-visible .core-ring {
+  animation-duration: 2.6s;
+  opacity: 1;
+}
+
+.core-ring {
+  position: absolute;
+  inset: -13px;
+  border-radius: inherit;
+  background: conic-gradient(from 0deg, transparent 0 64%, #00eaff 76%, rgba(82, 165, 255, 0.65) 88%, transparent 100%);
+  filter: blur(0.3px) drop-shadow(0 0 22px rgba(0, 222, 255, 0.7));
+  animation: core-ring-spin 8s linear infinite;
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.core-hex {
+  position: absolute;
+  top: 30%;
+  width: 34px;
+  height: 38px;
+  border: 2px solid rgba(187, 212, 244, 0.78);
+  clip-path: polygon(50% 0, 94% 25%, 94% 75%, 50% 100%, 6% 75%, 6% 25%);
+  filter: drop-shadow(0 0 14px rgba(133, 195, 255, 0.5));
+}
+
+.core-brand {
+  display: grid;
+  justify-items: center;
+  gap: 32px;
+  transform: translateY(20px);
+  text-align: center;
+}
+
+.core-brand strong {
+  font-size: clamp(44px, 5vw, 74px);
+  font-weight: 300;
+  letter-spacing: 0.32em;
+  color: #dceaff;
+  text-shadow: 0 0 24px rgba(170, 215, 255, 0.34);
+}
+
+.core-brand i {
+  width: min(150px, 36vw);
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(220, 234, 255, 0.78), transparent);
+}
+
+.core-brand span {
+  font-size: 14px;
+  letter-spacing: 0.58em;
+  color: rgba(220, 234, 255, 0.74);
+}
+
+.core-action {
+  position: absolute;
+  bottom: 19%;
+  padding: 10px 22px;
+  border: 1px solid rgba(0, 230, 255, 0.34);
+  border-radius: 999px;
+  color: #8ef6ff;
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  background: rgba(0, 225, 255, 0.06);
+  box-shadow: 0 0 24px rgba(0, 225, 255, 0.16);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.admin-core-button:hover .core-action,
+.admin-core-button:focus-visible .core-action {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.entry-status {
+  position: absolute;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  color: rgba(220, 234, 255, 0.76);
+  font-size: 14px;
+  letter-spacing: 0.26em;
+}
+
+.entry-status i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #2ef4ff;
+  box-shadow: 0 0 22px rgba(46, 244, 255, 0.95);
+}
+
+.admin-entry .admin-login-card {
+  position: relative;
+  z-index: 2;
+  width: min(440px, calc(100vw - 36px));
+  padding: 26px;
+  border: 1px solid rgba(111, 247, 255, 0.24);
+  border-radius: 26px;
+  background: linear-gradient(145deg, rgba(13, 23, 39, 0.9), rgba(6, 11, 19, 0.94));
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+}
+
+.admin-entry .login-back-button {
+  color: rgba(214, 233, 255, 0.72);
+  background: rgba(113, 175, 255, 0.08);
+  border: 1px solid rgba(111, 247, 255, 0.16);
+}
+
+.admin-entry .logo-stack h1,
+.admin-entry .logo-stack h1 span {
+  color: #f3f8ff;
+}
+
+.admin-entry .logo-stack p,
+.admin-entry label {
+  color: rgba(220, 234, 255, 0.72);
+}
+
+.admin-entry .warning-strip {
+  color: #87f7ff;
+  background: rgba(0, 228, 255, 0.08);
+  border-color: rgba(0, 228, 255, 0.22);
+}
+
+.admin-entry .neu-input {
+  color: #edf7ff;
+  background: rgba(5, 12, 23, 0.76);
+  border-color: rgba(142, 184, 230, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.admin-entry .neu-input:focus {
+  border-color: rgba(0, 232, 255, 0.72);
+  box-shadow: 0 0 0 4px rgba(0, 232, 255, 0.1), 0 0 28px rgba(0, 232, 255, 0.16);
+}
+
+.admin-entry .login-submit {
+  position: relative;
+  overflow: visible;
+  background: linear-gradient(135deg, #14294d, #071425);
+  border: 1px solid rgba(101, 240, 255, 0.3);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.28), 0 0 22px rgba(0, 224, 255, 0.12);
+}
+
+.admin-entry .login-submit::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: inherit;
+  background: conic-gradient(from 0deg, #2ef4ff, transparent 34%, transparent 68%, #7aa8ff);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  padding: 2px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-entry .login-submit.is-loading::after {
+  opacity: 1;
+  animation: button-loading-ring 0.9s linear infinite;
+}
+
+@keyframes core-ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes button-loading-ring {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes entry-grid-drift {
+  to {
+    background-position: 72px 72px;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-entry .admin-landing {
+    padding: 120px 18px 72px;
+  }
+
+  .admin-entry-nav {
+    top: 28px;
+    left: 18px;
+    right: 18px;
+    gap: 14px 22px;
+  }
+
+  .admin-entry-nav a {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+  }
+
+  .neon-grid {
+    width: 260px;
+    transform: translate(-20%, -52%);
+  }
+
+  .core-brand strong {
+    letter-spacing: 0.22em;
+  }
+
+  .core-brand span,
+  .entry-status {
+    font-size: 11px;
+    letter-spacing: 0.24em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-entry::before,
+  .core-ring,
+  .admin-entry .login-submit.is-loading::after {
+    animation: none;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -1684,5 +2053,50 @@ th + th {
 
   .security-ribbon span {
     letter-spacing: 0.12em;
+  }
+}
+
+/* Final entry overrides: keep the admin home screen dark even after legacy rules. */
+.admin-entry {
+  --cursor-x: 68%;
+  --cursor-y: 48%;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at var(--cursor-x) var(--cursor-y), rgba(0, 224, 255, 0.18), transparent 18rem),
+    radial-gradient(circle at 50% 48%, rgba(43, 62, 88, 0.45), transparent 28rem),
+    linear-gradient(135deg, #060b12 0%, #101827 52%, #070b12 100%);
+  color: #dceaff;
+  cursor: crosshair;
+}
+
+.admin-entry::before {
+  background:
+    linear-gradient(rgba(22, 240, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(22, 240, 255, 0.05) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(circle at var(--cursor-x) var(--cursor-y), #000 0 18rem, transparent 34rem);
+  animation: entry-grid-drift 18s linear infinite;
+}
+
+.admin-entry .admin-landing {
+  width: 100%;
+  min-height: 100vh;
+  padding: 96px 32px 74px;
+}
+
+.admin-entry .admin-seal-button,
+.admin-entry .admin-orbit {
+  display: none;
+}
+
+.admin-entry .admin-core-button {
+  display: grid;
+}
+
+@media (max-width: 760px) {
+  .admin-entry .admin-landing {
+    min-height: 100vh;
+    padding: 120px 18px 72px;
   }
 }

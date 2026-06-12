@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -216,42 +216,79 @@ function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showLogin, setShowLogin] = useState(false);
+  const [cursor, setCursor] = useState({ x: 68, y: 48 });
+  const labels = {
+    welcome: '\u0414\u043e\u0431\u0440\u043e \u043f\u043e\u0436\u0430\u043b\u043e\u0432\u0430\u0442\u044c \u0432 Negis Control',
+    sections: '\u0420\u0430\u0437\u0434\u0435\u043b\u044b Negis Control',
+    platform: '\u041e \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0435',
+    features: '\u0412\u043e\u0437\u043c\u043e\u0436\u043d\u043e\u0441\u0442\u0438',
+    security: '\u0411\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u044c',
+    contacts: '\u041a\u043e\u043d\u0442\u0430\u043a\u0442\u044b',
+    openLogin: '\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0432\u0445\u043e\u0434 \u0430\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440\u0430',
+    loginAction: '\u0412\u043e\u0439\u0442\u0438 \u0432 \u0430\u0434\u043c\u0438\u043d\u043a\u0443',
+    systemStatus: '\u0421\u0442\u0430\u0442\u0443\u0441 \u0441\u0438\u0441\u0442\u0435\u043c\u044b',
+    back: '\u0412\u0435\u0440\u043d\u0443\u0442\u044c\u0441\u044f \u043a \u044f\u0434\u0440\u0443',
+    subtitle: '\u0417\u0430\u043a\u0440\u044b\u0442\u0430\u044f \u043f\u0430\u043d\u0435\u043b\u044c \u0443\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u044f \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u043e\u0439',
+    adminOnly: '\u0422\u041e\u041b\u042c\u041a\u041e \u0414\u041b\u042f \u0410\u0414\u041c\u0418\u041d\u0418\u0421\u0422\u0420\u0410\u0422\u041e\u0420\u0410',
+    password: '\u041f\u0430\u0440\u043e\u043b\u044c',
+    checking: '\u041f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u043c',
+    enter: '\u0412\u043e\u0439\u0442\u0438'
+  };
 
   const login = useMutation({
     mutationFn: () => api<Session>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
     onSuccess: (session) => {
       queryClient.setQueryData(['session'], session);
-      toast.success('Добро пожаловать в Negis Control');
+      toast.success(labels.welcome);
       navigate('/dashboard');
     },
     onError: (error) => toast.error(error.message)
   });
 
   return (
-    <main className={`login-screen admin-entry ${showLogin ? 'is-login-open' : ''}`}>
+    <main
+      className={`login-screen admin-entry ${showLogin ? 'is-login-open' : ''}`}
+      style={{ '--cursor-x': `${cursor.x}%`, '--cursor-y': `${cursor.y}%` } as CSSProperties}
+      onPointerMove={(event) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        setCursor({
+          x: ((event.clientX - rect.left) / rect.width) * 100,
+          y: ((event.clientY - rect.top) / rect.height) * 100
+        });
+      }}
+    >
       {!showLogin ? (
         <section className="admin-landing" aria-label="Negis Control">
-          <div className="admin-orbit" aria-hidden="true">
-            <span className="orbit-mark orbit-mark-top" />
-            <span className="orbit-mark orbit-mark-right" />
-            <span className="orbit-mark orbit-mark-bottom" />
-            <span className="orbit-mark orbit-mark-left" />
+          <nav className="admin-entry-nav" aria-label={labels.sections}>
+            <a href="#platform">{labels.platform}</a>
+            <a href="#features">{labels.features}</a>
+            <a href="#security">{labels.security}</a>
+            <a href="#contacts">{labels.contacts}</a>
+          </nav>
+          <div className="neon-grid" aria-hidden="true">
+            {Array.from({ length: 48 }, (_, index) => (
+              <span key={index} />
+            ))}
           </div>
-          <button className="admin-seal-button" type="button" onClick={() => setShowLogin(true)} aria-label="Открыть вход администратора">
-            <span className="seal-string" aria-hidden="true" />
-            <span className="seal-ring" aria-hidden="true">
-              <span className="seal-inner">
-                <span className="seal-word">NEGIS</span>
-              </span>
+          <button className="admin-core-button" type="button" onClick={() => setShowLogin(true)} aria-label={labels.openLogin}>
+            <span className="core-ring" aria-hidden="true" />
+            <span className="core-hex" aria-hidden="true" />
+            <span className="core-brand">
+              <strong>NEGIS</strong>
+              <i aria-hidden="true" />
+              <span>CONTROL PLATFORM</span>
             </span>
-            <span className="security-ribbon">
-              <span>Вход администратора</span>
-            </span>
+            <span className="core-action">{labels.loginAction}</span>
           </button>
+          <div className="entry-status" aria-label={labels.systemStatus}>
+            <span>V1.0.0</span>
+            <i aria-hidden="true" />
+            <span>ONLINE</span>
+          </div>
         </section>
       ) : (
         <form
-          className="login-card admin-login-card neu-lg"
+          className="login-card admin-login-card"
           onSubmit={(event) => {
             event.preventDefault();
             login.mutate();
@@ -259,26 +296,26 @@ function LoginPage() {
         >
           <button className="login-back-button" type="button" onClick={() => setShowLogin(false)}>
             <ArrowLeftToLine size={16} />
-            Вернуться на главный экран
+            {labels.back}
           </button>
           <div className="logo-stack">
             <h1>
               Negis <span>Control</span>
             </h1>
-            <p>Панель управления платформой</p>
+            <p>{labels.subtitle}</p>
           </div>
-          <div className="warning-strip">ТОЛЬКО ДЛЯ АДМИНИСТРАТОРА</div>
+          <div className="warning-strip">{labels.adminOnly}</div>
           <label>
             Email
             <input className="neu-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
           </label>
           <label>
-            Пароль
+            {labels.password}
             <input className="neu-input" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
           </label>
-          <button className="neu-btn-primary full" disabled={login.isPending}>
+          <button className={`neu-btn-primary full login-submit ${login.isPending ? 'is-loading' : ''}`} disabled={login.isPending}>
             <Lock size={17} />
-            {login.isPending ? 'Проверяем' : 'Войти'}
+            {login.isPending ? labels.checking : labels.enter}
           </button>
         </form>
       )}
