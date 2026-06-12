@@ -284,8 +284,9 @@ function LoginPage() {
             <a href="#contacts">{labels.contacts}</a>
           </nav>
           <div className="neon-grid" aria-hidden="true">
+            <i className="grid-sweep" />
             {Array.from({ length: 48 }, (_, index) => (
-              <span key={index} />
+              <span key={index} style={{ '--node-delay': `${(index % 8) * 0.045 + Math.floor(index / 8) * 0.07}s` } as CSSProperties} />
             ))}
           </div>
           <button
