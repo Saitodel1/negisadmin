@@ -270,11 +270,10 @@ function LoginPage() {
             aria-label={labels.openLogin}
           >
             <span className="core-ring" aria-hidden="true" />
-            <span className="core-hex" aria-hidden="true" />
             <span className="core-brand">
               <strong>NEGIS</strong>
               <i aria-hidden="true" />
-              <span>CONTROL PLATFORM</span>
+              <span className="core-tape">CONTROL PLATFORM</span>
             </span>
             <span className="core-action">{labels.loginAction}</span>
           </button>
