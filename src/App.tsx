@@ -591,40 +591,40 @@ function DashboardPage() {
 
   return (
     <section className="page-stack">
-      {data?.mode === 'mock' && <div className="notice">Live API is not connected yet. Fill `.env` to switch from mock mode to Supabase.</div>}
+      {data?.mode === 'mock' && <div className="notice">Live API не подключен. После заполнения `.env` админка переключится на Supabase.</div>}
       <section className="control-hero neu-lg">
         <div>
-          <span className="section-kicker">SaaS Control Center</span>
-          <h1>Negis Operations Center</h1>
-          <p>Clinics, revenue, risks, support and platform health in one executive workspace.</p>
+          <span className="section-kicker">SAAS CONTROL CENTER</span>
+          <h1>Операционный центр Negis</h1>
+          <p>Клиники, деньги, риски, поддержка и техническое здоровье платформы в одном рабочем экране.</p>
         </div>
         <div className="hero-monogram">N</div>
       </section>
       <div className="metrics-grid">
-        <MetricCard icon={<Building2 />} label="Clinics" value={data?.metrics.totalClinics || 0} hint="under management" />
-        <MetricCard icon={<CheckCircle2 />} label="Active today" value={data?.metrics.activeToday || 0} hint="last 24 hours" />
-        <MetricCard icon={<CalendarClock />} label="New in 7 days" value={data?.metrics.newClinics7d || 0} hint="growth" />
-        <MetricCard icon={<Users />} label="CRM leads" value={data?.metrics.totalLeads || 0} hint="all clinics" />
-        <MetricCard icon={<Bell />} label="Bookings today" value={data?.metrics.bookingsToday || 0} hint="operations" />
-        <MetricCard icon={<CircleDollarSign />} label="Platform MRR" value={formatMoney(data?.metrics.revenueMonth || 0)} hint="current month" />
+        <MetricCard icon={<Building2 />} label="Клиники" value={data?.metrics.totalClinics || 0} hint="под управлением" />
+        <MetricCard icon={<CheckCircle2 />} label="Активны сегодня" value={data?.metrics.activeToday || 0} hint="за 24 часа" />
+        <MetricCard icon={<CalendarClock />} label="Новые за 7 дней" value={data?.metrics.newClinics7d || 0} hint="рост базы" />
+        <MetricCard icon={<Users />} label="Лиды в CRM" value={data?.metrics.totalLeads || 0} hint="по всем клиникам" />
+        <MetricCard icon={<Bell />} label="Записи сегодня" value={data?.metrics.bookingsToday || 0} hint="операционная активность" />
+        <MetricCard icon={<CircleDollarSign />} label="MRR платформы" value={formatMoney(data?.metrics.revenueMonth || 0)} hint="текущий месяц" />
       </div>
       <div className="content-grid wide-left">
         <section className="neu panel">
-          <PanelHeader title="Clinics requiring attention" action="health score" />
+          <PanelHeader title="Клиники под вниманием" action="health score" />
           <ClinicTable clinics={data?.clinics || []} compact />
         </section>
         <section className="neu panel">
-          <PanelHeader title="Today focus" action="auto priority" />
+          <PanelHeader title="Фокус на сегодня" action="автоприоритет" />
           <div className="task-stack">
-            <ActionTile tone="gold" title="Trial clinics" value={trial} text="Check onboarding quality and payment readiness." />
-            <ActionTile tone="red" title="Blocked clinics" value={blocked} text="Review payment, risk or access reasons." />
-            <ActionTile tone="blue" title="No activity" value={noActivity} text="Contact clinics with no activity for more than 7 days." />
+            <ActionTile tone="gold" title="Пробный период" value={trial} text="Проверить настройку CRM и готовность к оплате." />
+            <ActionTile tone="red" title="Заблокированы" value={blocked} text="Разобрать оплату, риски или причину ограничения доступа." />
+            <ActionTile tone="blue" title="Нет активности" value={noActivity} text="Связаться с клиниками без действий больше 7 дней." />
           </div>
         </section>
       </div>
       <div className="content-grid wide-left">
         <section className="neu panel">
-          <PanelHeader title="Clinic registrations" />
+          <PanelHeader title="Регистрации клиник" />
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={data?.registrationStats || []}>
               <CartesianGrid stroke="#d7dde8" strokeDasharray="4 4" />
@@ -636,7 +636,7 @@ function DashboardPage() {
           </ResponsiveContainer>
         </section>
         <section className="neu panel">
-          <PanelHeader title="Lead sources" />
+          <PanelHeader title="Источники лидов" />
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie data={data?.sourceStats || []} dataKey="value" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={4}>
@@ -728,8 +728,9 @@ function ClinicTable({ clinics, compact = false }: { clinics: Clinic[]; compact?
               {!compact && <td>{relativeTime(clinic.lastActivity)}</td>}
               <td>
                 <div className="row-actions">
-                  <Link className="icon-button neu-sm" to={`/clinics/${clinic.id}`} title="Просмотр">
+                  <Link className="mini-button secondary-action" to={`/clinics/${clinic.id}`} title="Обзор клиники">
                     <Eye size={16} />
+                    Обзор
                   </Link>
                   <button className="mini-button" onClick={() => impersonateClinic(clinic).catch((error) => toast.error(error.message))}>
                     Войти
@@ -967,6 +968,32 @@ function ClinicDetailPage() {
           </button>
         </div>
       </div>
+      <section className="clinic-overview-grid">
+        <article className="overview-card neu">
+          <span>01</span>
+          <h3>Обзор клиники</h3>
+          <p>Сводка по владельцу, тарифу, активности и рискам.</p>
+          <b>{clinic.plan}</b>
+        </article>
+        <article className="overview-card neu">
+          <span>02</span>
+          <h3>Сотрудники и роли</h3>
+          <p>{detail.data?.agents.length || 0} сотрудников. Должности: {(detail.data?.agents || []).map((agent) => agent.role).filter(Boolean).slice(0, 4).join(', ') || 'не указаны'}.</p>
+          <b>{detail.data?.agents.length || 0}</b>
+        </article>
+        <article className="overview-card neu">
+          <span>03</span>
+          <h3>Воронка</h3>
+          <p>Лиды, записи, приходы и оценка конверсии по этапам.</p>
+          <b>{clinic.leadsCount} / {clinic.bookingsCount}</b>
+        </article>
+        <article className="overview-card neu">
+          <span>04</span>
+          <h3>Деньги</h3>
+          <p>Оценка выручки и потенциал клиники для перехода на старший тариф.</p>
+          <b>{formatMoney(clinic.revenue)}</b>
+        </article>
+      </section>
       <div className="content-grid">
         <section className="neu panel">
           <PanelHeader title="Информация клиники" />
@@ -1490,16 +1517,16 @@ function BillingPage() {
 
   return (
     <section className="page-stack">
-      <ModuleHero kicker="Billing OS" title="Billing and Plans" text="Invoices, subscriptions, trial periods, plan limits and revenue forecast." accent="B" />
+      <ModuleHero kicker="BILLING OS" title="Биллинг и тарифы" text="Счета, подписки, пробные периоды, лимиты пакетов и прогноз выручки." accent="B" />
       <div className="metrics-grid four">
-        <MetricCard icon={<CheckCircle2 />} label="Active subscriptions" value={activeSubscriptions.length} hint="paid access" />
-        <MetricCard icon={<CalendarClock />} label="Expiring soon" value={expiringSoon} hint="next 7 days" />
-        <MetricCard icon={<CircleDollarSign />} label="MRR" value={formatMoney(finances.data?.revenueMonth || 0)} hint="current month" />
-        <MetricCard icon={<BadgeDollarSign />} label="Forecast" value={formatMoney(finances.data?.forecast || 0)} hint="next month" />
+        <MetricCard icon={<CheckCircle2 />} label="Активные подписки" value={activeSubscriptions.length} hint="оплаченный доступ" />
+        <MetricCard icon={<CalendarClock />} label="Истекают скоро" value={expiringSoon} hint="следующие 7 дней" />
+        <MetricCard icon={<CircleDollarSign />} label="MRR" value={formatMoney(finances.data?.revenueMonth || 0)} hint="текущий месяц" />
+        <MetricCard icon={<BadgeDollarSign />} label="Прогноз" value={formatMoney(finances.data?.forecast || 0)} hint="следующий месяц" />
       </div>
       <div className="content-grid wide-left">
         <section className="neu panel">
-          <PanelHeader title="Revenue by month" />
+          <PanelHeader title="Выручка по месяцам" />
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={finances.data?.byMonth || []}>
               <CartesianGrid stroke="#d7dde8" strokeDasharray="4 4" />
@@ -1511,7 +1538,7 @@ function BillingPage() {
           </ResponsiveContainer>
         </section>
         <section className="neu panel">
-          <PanelHeader title="Plan packages" action="Start / Pro / Max" />
+          <PanelHeader title="Пакеты SaaS" action="Start / Pro / Max" />
           <div className="tariff-stack">
             {(subscriptions.data?.plans || []).map((plan) => (
               <div className="tariff-row" key={plan.name}>
@@ -1527,20 +1554,20 @@ function BillingPage() {
         </section>
       </div>
       <DataPage
-        title="Clinic subscriptions"
+        title="Подписки клиник"
         rows={subscriptionRows}
-        columns={['Clinic', 'Plan', 'Start', 'End', 'Amount', 'Status']}
+        columns={['Клиника', 'Тариф', 'Начало', 'Окончание', 'Сумма', 'Статус']}
         render={(sub) => [sub.clinic, sub.plan, formatDate(sub.startsAt), formatDate(sub.endsAt), formatMoney(sub.amount), statusLabel(sub.status)]}
-        actionLabel="Open clinic"
+        actionLabel="Открыть клинику"
         onOpen={(sub) => navigate(`/clinics/${sub.clinicId}`)}
         embedded
       />
       <DataPage
-        title="Payment history"
+        title="История платежей"
         rows={finances.data?.payments || []}
-        columns={['Clinic', 'Plan', 'Amount', 'Method', 'Date', 'Status']}
+        columns={['Клиника', 'Тариф', 'Сумма', 'Метод', 'Дата', 'Статус']}
         render={(payment) => [payment.clinic, payment.plan, formatMoney(payment.amount), payment.method, formatDate(payment.createdAt), statusLabel(payment.status)]}
-        actionLabel="Clinic"
+        actionLabel="Клиника"
         onOpen={(payment) => navigate(`/clinics/${payment.clinicId}`)}
         embedded
       />
@@ -1556,16 +1583,16 @@ function AnalyticsPage() {
 
   return (
     <section className="page-stack">
-      <ModuleHero kicker="Analytics" title="SaaS Analytics" text="Growth, clinic activity, MRR, lead sources and product signals for management decisions." accent="A" />
+      <ModuleHero kicker="ANALYTICS" title="SaaS-аналитика" text="Рост, активность клиник, MRR, источники лидов и продуктовые сигналы для решений." accent="A" />
       <div className="metrics-grid four">
-        <MetricCard icon={<CircleDollarSign />} label="MRR" value={formatMoney(finances.data?.revenueMonth || 0)} hint="monthly revenue" />
-        <MetricCard icon={<Activity />} label="Avg leads" value={avgLeads} hint="per clinic" />
-        <MetricCard icon={<Building2 />} label="Clinics" value={data?.metrics.totalClinics || 0} hint="database" />
-        <MetricCard icon={<CalendarClock />} label="New 7d" value={data?.metrics.newClinics7d || 0} hint="growth pace" />
+        <MetricCard icon={<CircleDollarSign />} label="MRR" value={formatMoney(finances.data?.revenueMonth || 0)} hint="месячная выручка" />
+        <MetricCard icon={<Activity />} label="Средне лидов" value={avgLeads} hint="на клинику" />
+        <MetricCard icon={<Building2 />} label="Клиники" value={data?.metrics.totalClinics || 0} hint="в базе" />
+        <MetricCard icon={<CalendarClock />} label="Новые 7д" value={data?.metrics.newClinics7d || 0} hint="темп роста" />
       </div>
       <div className="content-grid wide-left">
         <section className="neu panel">
-          <PanelHeader title="Revenue growth" />
+          <PanelHeader title="Рост выручки" />
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={finances.data?.byMonth || []}>
               <CartesianGrid stroke="#d7dde8" strokeDasharray="4 4" />
@@ -1577,7 +1604,7 @@ function AnalyticsPage() {
           </ResponsiveContainer>
         </section>
         <section className="neu panel">
-          <PanelHeader title="Revenue by plan" />
+          <PanelHeader title="Выручка по тарифам" />
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie data={finances.data?.byPlan || []} dataKey="value" nameKey="name" innerRadius={52} outerRadius={92} paddingAngle={4}>
@@ -1599,17 +1626,17 @@ function MonitoringPage() {
 
   return (
     <section className="page-stack">
-      <ModuleHero kicker="Ops Monitor" title="Monitoring and Audit" text="Platform health, errors, logins, critical actions and change history." accent="M" />
+      <ModuleHero kicker="OPS MONITOR" title="Мониторинг и аудит" text="Техническое здоровье, ошибки, входы, критические действия и история изменений." accent="M" />
       <div className="metrics-grid four">
-        <MetricCard icon={<ShieldCheck />} label="Status" value="ONLINE" hint="admin is responding" />
-        <MetricCard icon={<ShieldAlert />} label="Critical events" value={critical} hint="from logs" />
-        <MetricCard icon={<Activity />} label="Log entries" value={logRows.length} hint="super_logs" />
-        <MetricCard icon={<Clock3 />} label="Last entry" value={logRows[0] ? formatTime(logRows[0].time) : '?'} hint="audit" />
+        <MetricCard icon={<ShieldCheck />} label="Статус" value="ONLINE" hint="админка отвечает" />
+        <MetricCard icon={<ShieldAlert />} label="Критичные события" value={critical} hint="по логам" />
+        <MetricCard icon={<Activity />} label="Записей лога" value={logRows.length} hint="super_logs" />
+        <MetricCard icon={<Clock3 />} label="Последняя запись" value={logRows[0] ? formatTime(logRows[0].time) : '—'} hint="аудит" />
       </div>
       <DataPage
-        title="Action audit"
+        title="Аудит действий"
         rows={logRows}
-        columns={['Time', 'Clinic', 'User', 'Action', 'Details', 'IP']}
+        columns={['Время', 'Клиника', 'Пользователь', 'Действие', 'Детали', 'IP']}
         render={(log) => [formatTime(log.time), log.clinic, log.user, log.action, log.details, log.ip]}
         embedded
       />
@@ -1620,76 +1647,152 @@ function MonitoringPage() {
 function SupportPage() {
   return (
     <SaaSModulePage
-      kicker="Support Desk"
-      title="Clinic Support"
+      kicker="SUPPORT DESK"
+      title="Поддержка клиник"
       accent="S"
-      text="Single queue for clinic onboarding, data migration, ad accounts, CRM issues and client communication."
+      text="Единая очередь заявок: подключение, перенос базы, рекламные аккаунты, ошибки CRM и коммуникация."
       cards={[
-        ['New tickets', '0', 'waiting for support API'],
-        ['In progress', '0', 'owner assignment'],
-        ['SLA today', '0', 'response control'],
-        ['Escalations', '0', 'critical clinics']
+        ['Новые заявки', '0', 'ожидает support API'],
+        ['В работе', '0', 'назначение ответственных'],
+        ['SLA', '0', 'контроль реакции'],
+        ['Эскалации', '0', 'критичные клиники']
       ]}
       blocks={[
-        ['Ticket queue', 'Clinic requests, statuses, assignees, comments and communication history.'],
-        ['Fast actions', 'Open clinic, enter CRM, create task and send email to the owner.'],
-        ['Knowledge base', 'Playbooks for lead import, Facebook/TikTok, WhatsApp and access recovery.']
+        ['Очередь обращений', 'Заявки клиник, статусы, ответственные, комментарии и история общения.'],
+        ['Быстрые действия', 'Открыть клинику, войти в CRM, создать задачу, отправить письмо владельцу.'],
+        ['База решений', 'Инструкции для импорта лидов, Facebook/TikTok, WhatsApp и восстановления доступа.']
       ]}
     />
   );
 }
 
 function IntegrationsPage() {
+  const [connect, setConnect] = useState<{ name: string; type: string } | null>(null);
+  const integrations = [
+    { name: 'Facebook Ads', type: 'ads', status: 'готово к подключению', hint: 'лиды, пиксель, события' },
+    { name: 'TikTok Ads', type: 'ads', status: 'готово к подключению', hint: 'лиды и события' },
+    { name: 'WhatsApp', type: 'messenger', status: 'ожидает ключи', hint: 'уведомления и диалоги' },
+    { name: 'Email / Zoho', type: 'email', status: 'можно настроить', hint: 'сброс пароля и счета' },
+    { name: 'External API', type: 'api', status: 'доступно', hint: 'webhooks и API-ключи' },
+    { name: 'Google Sheets', type: 'export', status: 'доступно', hint: 'импорт и экспорт лидов' }
+  ];
+
   return (
-    <SaaSModulePage
-      kicker="Integration Hub"
-      title="Integrations"
-      accent="I"
-      text="Connection center for ads, messengers, email, API keys, webhooks, domains and sync statuses."
-      cards={[
-        ['Facebook Ads', 'API', 'leads and pixel'],
-        ['TikTok Ads', 'API', 'leads and events'],
-        ['WhatsApp', 'WA', 'notifications and chats'],
-        ['Email', 'Zoho', 'password reset and invoices']
-      ]}
-      blocks={[
-        ['Connection status', 'Connected, error, last sync and clinics with active integrations.'],
-        ['API and Webhooks', 'Keys, request signatures, incoming lead journal and retry queue.'],
-        ['Domains and Pixels', 'crm.negis.online, admin.negis.online, Meta/TikTok pixels and domain verification.']
-      ]}
-    />
+    <section className="page-stack">
+      <ModuleHero kicker="INTEGRATION HUB" title="Интеграции" text="Рабочий центр подключений: реклама, мессенджеры, email, внешние API, webhooks и домены." accent="I" />
+      <section className="integration-grid">
+        {integrations.map((item) => (
+          <article className="integration-card neu" key={item.name}>
+            <span>{item.name.slice(0, 2).toUpperCase()}</span>
+            <div>
+              <h3>{item.name}</h3>
+              <p>{item.hint}</p>
+              <small>{item.status}</small>
+            </div>
+            <button className="neu-btn-primary" onClick={() => setConnect({ name: item.name, type: item.type })}>Подключить</button>
+          </article>
+        ))}
+      </section>
+      <section className="module-grid">
+        <article className="module-card neu">
+          <span>01</span>
+          <h3>Наш Admin API</h3>
+          <p>Здесь будут API-ключи Negis Control, подписи запросов, лимиты и журнал входящих событий.</p>
+          <button className="neu-btn" onClick={() => setConnect({ name: 'Negis Admin API', type: 'api' })}>Создать ключ</button>
+        </article>
+        <article className="module-card neu">
+          <span>02</span>
+          <h3>Webhooks</h3>
+          <p>Добавление внешнего URL, секрет подписи, повторная отправка ошибок и тестовый ping.</p>
+          <button className="neu-btn" onClick={() => setConnect({ name: 'Webhook endpoint', type: 'webhook' })}>Добавить webhook</button>
+        </article>
+        <article className="module-card neu">
+          <span>03</span>
+          <h3>Домены и пиксели</h3>
+          <p>crm.negis.online, admin.negis.online, пиксели Meta/TikTok и проверка домена.</p>
+          <button className="neu-btn" onClick={() => setConnect({ name: 'Domains and Pixels', type: 'domain' })}>Настроить</button>
+        </article>
+      </section>
+      {connect && <IntegrationModal integration={connect} onClose={() => setConnect(null)} />}
+    </section>
+  );
+}
+
+function IntegrationModal({ integration, onClose }: { integration: { name: string; type: string }; onClose: () => void }) {
+  const [apiKey, setApiKey] = useState('');
+  const [endpoint, setEndpoint] = useState('');
+  const [secret, setSecret] = useState('');
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-card neu-lg">
+        <div className="panel-header">
+          <h3>{integration.name}</h3>
+          <button className="icon-button neu-sm" onClick={onClose} type="button">×</button>
+        </div>
+        <p className="modal-copy">Активная заглушка подключения. Сейчас данные не отправляются во внешний сервис, но форма готова под backend endpoint.</p>
+        <div className="modal-form">
+          <label><span>API Key / Token</span><input className="neu-input" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="sk_live_..." /></label>
+          <label><span>Webhook URL</span><input className="neu-input" value={endpoint} onChange={(event) => setEndpoint(event.target.value)} placeholder="https://example.com/webhook" /></label>
+          <label><span>Secret</span><input className="neu-input" value={secret} onChange={(event) => setSecret(event.target.value)} placeholder="signature secret" /></label>
+        </div>
+        <div className="modal-actions">
+          <button className="neu-btn" onClick={() => toast.info('Тестовый запрос подготовлен. Подключите backend endpoint для реальной отправки.')}>Тестировать</button>
+          <button className="neu-btn-primary" onClick={() => { toast.success('Интеграция сохранена как черновик'); onClose(); }}>Сохранить черновик</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
 function TeamPage() {
-  const navigate = useNavigate();
-  const users = useQuery({
-    queryKey: ['users'],
-    queryFn: () =>
-      api<{
-        users: Array<{ id: string; clinicId: string; name: string; email: string; clinic: string; plan: string; createdAt: string; lastLogin: string; kyc: string }>;
-      }>('/api/users')
-  });
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const team = [
+    { id: 'owner', name: 'Negis Owner', email: 'negissupport@negis.online', role: 'Owner', access: 'полный доступ' },
+    { id: 'support', name: 'Support Manager', email: 'support@negis.online', role: 'Support', access: 'клиники и обращения' },
+    { id: 'finance', name: 'Finance Manager', email: 'finance@negis.online', role: 'Finance', access: 'биллинг и счета' }
+  ];
 
   return (
     <section className="page-stack">
-      <ModuleHero kicker="Access Control" title="Team and Access" text="Negis team, support roles and clinic owners. Business employees are managed inside each clinic profile." accent="T" />
+      <ModuleHero kicker="ACCESS CONTROL" title="Команда Negis" text="Это доступы вашей команды, а не сотрудники клиник. Сотрудники бизнеса находятся внутри карточки клиники." accent="T" />
       <div className="metrics-grid four">
-        <MetricCard icon={<Users />} label="Accounts" value={users.data?.users.length || 0} hint="owners and admins" />
-        <MetricCard icon={<ShieldCheck />} label="Owner" value="1" hint="root access" />
-        <MetricCard icon={<Lock />} label="Policy" value="RBAC" hint="roles and rights" />
-        <MetricCard icon={<Activity />} label="Audit" value="ON" hint="dangerous actions" />
+        <MetricCard icon={<Users />} label="Члены команды" value={team.length} hint="внутренний доступ" />
+        <MetricCard icon={<ShieldCheck />} label="Owner" value="1" hint="главный доступ" />
+        <MetricCard icon={<Lock />} label="Модель прав" value="RBAC" hint="роли и ограничения" />
+        <MetricCard icon={<Activity />} label="Аудит" value="ON" hint="опасные действия" />
       </div>
-      <DataPage
-        title="Clinic users"
-        rows={users.data?.users || []}
-        columns={['Name', 'Email', 'Clinic', 'Plan', 'Created', 'Last login', 'KYC']}
-        render={(user) => [user.name, user.email, user.clinic, user.plan, formatDate(user.createdAt), relativeTime(user.lastLogin), statusLabel(user.kyc)]}
-        actionLabel="Open clinic"
-        onOpen={(user) => navigate(`/clinics/${user.clinicId}`)}
-        embedded
-      />
+      <section className="neu panel">
+        <PanelHeader title="Внутренняя команда" action="права доступа" />
+        <div className="team-grid">
+          {team.map((member) => (
+            <article className="team-card" key={member.id}>
+              <span>{member.name.slice(0, 2).toUpperCase()}</span>
+              <div><strong>{member.name}</strong><p>{member.email}</p><small>{member.role} · {member.access}</small></div>
+              <button className="mini-button" onClick={() => toast.info('Редактор прав будет подключен к Admin API')}>Права</button>
+            </article>
+          ))}
+        </div>
+        <button className="neu-btn-primary" onClick={() => setInviteOpen(true)}>Пригласить сотрудника Negis</button>
+      </section>
+      {inviteOpen && <TeamInviteModal onClose={() => setInviteOpen(false)} />}
     </section>
+  );
+}
+
+function TeamInviteModal({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState('Support');
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-card neu-lg">
+        <div className="panel-header"><h3>Пригласить сотрудника</h3><button className="icon-button neu-sm" onClick={onClose}>×</button></div>
+        <div className="modal-form">
+          <label><span>Email</span><input className="neu-input" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="manager@negis.online" /></label>
+          <label><span>Роль</span><select value={role} onChange={(event) => setRole(event.target.value)}><option>Admin</option><option>Support</option><option>Finance</option><option>Developer</option><option>Read-only</option></select></label>
+        </div>
+        <div className="modal-actions"><button className="neu-btn" onClick={onClose}>Отмена</button><button className="neu-btn-primary" onClick={() => { toast.success('Приглашение подготовлено'); onClose(); }}>Отправить приглашение</button></div>
+      </div>
+    </div>
   );
 }
 
@@ -1737,30 +1840,47 @@ function SettingsPage() {
         platform: { name: string; supportEmail: string; trialDays: number; defaultPlan: string; mainAppUrl: string };
       }>('/api/settings')
   });
+  const [supportEmail, setSupportEmail] = useState('');
+  const [trialDays, setTrialDays] = useState('');
+  const [defaultPlan, setDefaultPlan] = useState('');
+  const [mainAppUrl, setMainAppUrl] = useState('');
+
+  useEffect(() => {
+    if (!settings.data) return;
+    setSupportEmail(settings.data.platform.supportEmail || '');
+    setTrialDays(String(settings.data.platform.trialDays || 14));
+    setDefaultPlan(settings.data.platform.defaultPlan || 'Basic');
+    setMainAppUrl(settings.data.platform.mainAppUrl || '');
+  }, [settings.data]);
+
+  const saveSettings = () => {
+    toast.success('Настройки подготовлены к сохранению. Подключите PATCH /api/settings для записи в базу.');
+  };
+
   return (
     <section className="page-stack settings-grid">
+      <ModuleHero kicker="PLATFORM SETTINGS" title="Настройки платформы" text="Глобальные параметры Negis Control: домены, email, trial, тариф по умолчанию и безопасные действия." accent="S" />
       <section className="neu panel">
-        <PanelHeader title="Super Admin Profile" />
+        <PanelHeader title="Профиль Super Admin" />
         <InfoRows rows={[['Email', settings.data?.profile.email || '—'], ['Роль', 'super_admin']]} />
       </section>
       <section className="neu panel">
-        <PanelHeader title="Platform Settings" />
-        <InfoRows
-          rows={[
-            ['Platform name', settings.data?.platform.name || 'Negis'],
-            ['Support email', settings.data?.platform.supportEmail || '—'],
-            ['Trial period', `${settings.data?.platform.trialDays || 14} дней`],
-            ['Default plan', settings.data?.platform.defaultPlan || 'Basic'],
-            ['Main app URL', settings.data?.platform.mainAppUrl || '—']
-          ]}
-        />
-      </section>
-      <section className="danger-zone neu">
-        <AlertTriangle />
-        <div>
-          <h3>Danger Zone</h3>
-          <p>Деструктивные действия будут требовать ввод «ПОДТВЕРЖДАЮ» и запись в super_logs.</p>
+        <PanelHeader title="Редактируемые настройки" action="активная форма" />
+        <div className="settings-form">
+          <label><span>Support email</span><input className="neu-input" value={supportEmail} onChange={(event) => setSupportEmail(event.target.value)} /></label>
+          <label><span>Trial, дней</span><input className="neu-input" type="number" value={trialDays} onChange={(event) => setTrialDays(event.target.value)} /></label>
+          <label><span>Тариф по умолчанию</span><input className="neu-input" value={defaultPlan} onChange={(event) => setDefaultPlan(event.target.value)} /></label>
+          <label><span>Main CRM URL</span><input className="neu-input" value={mainAppUrl} onChange={(event) => setMainAppUrl(event.target.value)} /></label>
         </div>
+        <div className="modal-actions">
+          <button className="neu-btn" onClick={() => settings.refetch()}>Сбросить</button>
+          <button className="neu-btn-primary" onClick={saveSettings}>Сохранить настройки</button>
+        </div>
+      </section>
+      <section className="module-grid">
+        <article className="module-card neu"><span>01</span><h3>Безопасность</h3><p>Сессии, доступ команды, аудит опасных действий и ограничения по ролям.</p><button className="neu-btn" onClick={() => toast.info('Раздел безопасности будет подключен к Admin API')}>Открыть</button></article>
+        <article className="module-card neu"><span>02</span><h3>Уведомления</h3><p>Email-отправитель, шаблоны счетов, восстановление пароля и системные письма.</p><button className="neu-btn" onClick={() => toast.info('Редактор уведомлений будет подключен к backend')}>Редактировать</button></article>
+        <article className="module-card neu"><span>03</span><h3>Danger Zone</h3><p>Удаление клиник, массовые операции и финансовые правила требуют подтверждения и логирования.</p><button className="neu-btn-danger" onClick={() => toast.warning('Danger Zone требует отдельного подтверждения')}>Настроить</button></article>
       </section>
     </section>
   );
