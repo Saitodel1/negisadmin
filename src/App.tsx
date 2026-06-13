@@ -225,23 +225,23 @@ type AppSettings = {
 };
 
 const navItems = [
-  { label: '???????', path: '/dashboard', icon: Gauge },
-  { label: '???????', path: '/clinics', icon: Building2 },
-  { label: '????????????', path: '/users', icon: Users },
-  { label: '????????', path: '/subscriptions', icon: BadgeDollarSign },
-  { label: '???????', path: '/finances', icon: CircleDollarSign },
-  { label: '????', path: '/logs', icon: Activity },
+  { label: '\u0414\u0430\u0448\u0431\u043e\u0440\u0434', path: '/dashboard', icon: Gauge },
+  { label: '\u041a\u043b\u0438\u043d\u0438\u043a\u0438', path: '/clinics', icon: Building2 },
+  { label: '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0438', path: '/users', icon: Users },
+  { label: '\u041f\u043e\u0434\u043f\u0438\u0441\u043a\u0438', path: '/subscriptions', icon: BadgeDollarSign },
+  { label: '\u0424\u0438\u043d\u0430\u043d\u0441\u044b', path: '/finances', icon: CircleDollarSign },
+  { label: '\u041b\u043e\u0433\u0438', path: '/logs', icon: Activity },
   { label: 'App Dashboard', path: '/app-dashboard', icon: Smartphone },
-  { label: '??????? App', path: '/app-clients', icon: Users },
-  { label: '??????-??????', path: '/app-appointments', icon: ClipboardList },
-  { label: 'QR-???????', path: '/app-qr', icon: QrCode },
-  { label: '??????', path: '/app-bonuses', icon: WalletCards },
-  { label: '???????', path: '/app-tasks', icon: ListChecks },
-  { label: '?????', path: '/app-promotions', icon: Megaphone },
-  { label: '?????????', path: '/app-moderation', icon: ShieldCheck },
-  { label: '????????', path: '/app-partners', icon: Store },
-  { label: 'App ?????????', path: '/app-settings', icon: Settings },
-  { label: '?????????', path: '/settings', icon: Settings }
+  { label: '\u041a\u043b\u0438\u0435\u043d\u0442\u044b App', path: '/app-clients', icon: Users },
+  { label: '\u041e\u043d\u043b\u0430\u0439\u043d-\u0437\u0430\u043f\u0438\u0441\u0438', path: '/app-appointments', icon: ClipboardList },
+  { label: 'QR-\u043f\u0440\u0438\u0445\u043e\u0434\u044b', path: '/app-qr', icon: QrCode },
+  { label: '\u0411\u043e\u043d\u0443\u0441\u044b', path: '/app-bonuses', icon: WalletCards },
+  { label: '\u0417\u0430\u0434\u0430\u043d\u0438\u044f', path: '/app-tasks', icon: ListChecks },
+  { label: '\u0410\u043a\u0446\u0438\u0438', path: '/app-promotions', icon: Megaphone },
+  { label: '\u041c\u043e\u0434\u0435\u0440\u0430\u0446\u0438\u044f', path: '/app-moderation', icon: ShieldCheck },
+  { label: '\u041f\u0430\u0440\u0442\u043d\u0435\u0440\u044b', path: '/app-partners', icon: Store },
+  { label: 'App \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438', path: '/app-settings', icon: Settings },
+  { label: '\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438', path: '/settings', icon: Settings }
 ];
 
 const colors = ['#1A56DB', '#10B981', '#F59E0B', '#EF4444', '#64748B', '#8B5CF6'];
@@ -1254,6 +1254,49 @@ function LogsPage() {
   );
 }
 
+const appLabels = {
+  notice: '\u0420\u0430\u0437\u0434\u0435\u043b\u044b \u043a\u043b\u0438\u0435\u043d\u0442\u0441\u043a\u043e\u0433\u043e \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f \u043f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043b\u0435\u043d\u044b \u043f\u043e\u0434 \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0435 API. \u0414\u0435\u043c\u043e-\u0434\u0430\u043d\u043d\u044b\u0435 \u043d\u0435 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u044e\u0442\u0441\u044f: \u043f\u043e\u043a\u0430 backend app-\u043c\u043e\u0434\u0443\u043b\u044c \u043d\u0435 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d, \u0442\u0430\u0431\u043b\u0438\u0446\u044b \u0431\u0443\u0434\u0443\u0442 \u043f\u0443\u0441\u0442\u044b\u043c\u0438.',
+  appClients: '\u041a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f',
+  total: '\u0432\u0441\u0435\u0433\u043e',
+  active24h: '\u0410\u043a\u0442\u0438\u0432\u043d\u044b\u0445 \u0437\u0430 24 \u0447\u0430\u0441\u0430',
+  appAppointments: '\u0417\u0430\u043f\u0438\u0441\u0435\u0439 \u0447\u0435\u0440\u0435\u0437 App',
+  sourceApp: '\u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a Negis App',
+  qrArrivals: 'QR-\u043f\u0440\u0438\u0445\u043e\u0434\u043e\u0432',
+  confirmed: '\u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u043e',
+  bonusesEarned: '\u0411\u043e\u043d\u0443\u0441\u043e\u0432 \u043d\u0430\u0447\u0438\u0441\u043b\u0435\u043d\u043e',
+  period: '\u0437\u0430 \u043f\u0435\u0440\u0438\u043e\u0434',
+  activePromotions: '\u0410\u043a\u0442\u0438\u0432\u043d\u044b\u0445 \u0430\u043a\u0446\u0438\u0439',
+  afterModeration: '\u043f\u043e\u0441\u043b\u0435 \u043c\u043e\u0434\u0435\u0440\u0430\u0446\u0438\u0438',
+  registrationsByDay: '\u0420\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u043f\u043e \u0434\u043d\u044f\u043c',
+  bonusEconomy: '\u0411\u043e\u043d\u0443\u0441\u043d\u0430\u044f \u044d\u043a\u043e\u043d\u043e\u043c\u0438\u043a\u0430',
+  spentBonuses: '\u0421\u043f\u0438\u0441\u0430\u043d\u043e \u0431\u043e\u043d\u0443\u0441\u043e\u0432',
+  completedTasks: '\u0412\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u043e \u0437\u0430\u0434\u0430\u043d\u0438\u0439',
+  loyaltyBusinesses: '\u0411\u0438\u0437\u043d\u0435\u0441\u043e\u0432 \u0432 \u043b\u043e\u044f\u043b\u044c\u043d\u043e\u0441\u0442\u0438',
+  active7d: '\u0410\u043a\u0442\u0438\u0432\u043d\u044b\u0445 \u0437\u0430 7 \u0434\u043d\u0435\u0439',
+  clientsTitle: '\u041a\u043b\u0438\u0435\u043d\u0442\u044b \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f',
+  appointmentsTitle: '\u041e\u043d\u043b\u0430\u0439\u043d-\u0437\u0430\u043f\u0438\u0441\u0438 \u0438\u0437 Negis App',
+  qrTitle: 'QR-\u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u044f \u043f\u0440\u0438\u0445\u043e\u0434\u0430',
+  tasksTitle: '\u0417\u0430\u0434\u0430\u043d\u0438\u044f \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f',
+  promotionsTitle: '\u0410\u043a\u0446\u0438\u0438 \u0438 \u0440\u0435\u043a\u043b\u0430\u043c\u0430',
+  moderationTitle: '\u041c\u043e\u0434\u0435\u0440\u0430\u0446\u0438\u044f',
+  partnersTitle: '\u041f\u0430\u0440\u0442\u043d\u0435\u0440\u044b \u0438 \u0431\u0438\u0437\u043d\u0435\u0441\u044b \u0432 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0438',
+  globalBonusRules: '\u0413\u043b\u043e\u0431\u0430\u043b\u044c\u043d\u044b\u0435 \u043f\u0440\u0430\u0432\u0438\u043b\u0430 \u0431\u043e\u043d\u0443\u0441\u043e\u0432',
+  appModules: '\u041c\u043e\u0434\u0443\u043b\u0438 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f',
+  financialLimits: '\u0424\u0438\u043d\u0430\u043d\u0441\u043e\u0432\u044b\u0435 \u043b\u0438\u043c\u0438\u0442\u044b',
+  financialLimitsHint: '\u0418\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u043f\u0440\u0430\u0432\u0438\u043b \u0431\u043e\u043d\u0443\u0441\u043e\u0432 \u0434\u043e\u043b\u0436\u043d\u044b \u043b\u043e\u0433\u0438\u0440\u043e\u0432\u0430\u0442\u044c\u0441\u044f \u0438 \u043f\u0440\u0438\u043c\u0435\u043d\u044f\u0442\u044c\u0441\u044f \u0442\u043e\u043b\u044c\u043a\u043e \u0447\u0435\u0440\u0435\u0437 \u0437\u0430\u0449\u0438\u0449\u0435\u043d\u043d\u044b\u0439 Admin API.',
+  enabled: '\u0432\u043a\u043b\u044e\u0447\u0435\u043d\u044b',
+  disabled: '\u0432\u044b\u043a\u043b\u044e\u0447\u0435\u043d\u044b'
+};
+
+const clientColumns = ['\u0418\u043c\u044f', '\u0422\u0435\u043b\u0435\u0444\u043e\u043d', '\u0413\u043e\u0440\u043e\u0434', '\u0420\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044f', '\u0411\u043e\u043d\u0443\u0441\u044b', '\u0417\u0430\u043f\u0438\u0441\u0435\u0439', '\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0439 \u0432\u0438\u0437\u0438\u0442', '\u0421\u0442\u0430\u0442\u0443\u0441'];
+const appointmentColumns = ['\u041a\u043b\u0438\u0435\u043d\u0442', '\u0411\u0438\u0437\u043d\u0435\u0441', '\u0424\u0438\u043b\u0438\u0430\u043b', '\u0423\u0441\u043b\u0443\u0433\u0430', '\u0421\u043f\u0435\u0446\u0438\u0430\u043b\u0438\u0441\u0442', '\u0414\u0430\u0442\u0430', '\u0412\u0440\u0435\u043c\u044f', '\u0421\u0442\u0430\u0442\u0443\u0441', '\u0418\u0441\u0442\u043e\u0447\u043d\u0438\u043a', 'QR'];
+const qrColumns = ['\u0417\u0430\u043f\u0438\u0441\u044c', '\u041a\u043b\u0438\u0435\u043d\u0442', '\u0411\u0438\u0437\u043d\u0435\u0441', '\u0421\u043a\u0430\u043d\u0438\u0440\u043e\u0432\u0430\u043b', '\u0412\u0440\u0435\u043c\u044f', 'QR \u0441\u0442\u0430\u0442\u0443\u0441', '\u0423\u0441\u0442\u0440\u043e\u0439\u0441\u0442\u0432\u043e/IP', '\u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442'];
+const bonusColumns = ['\u041a\u043b\u0438\u0435\u043d\u0442', '\u0411\u0438\u0437\u043d\u0435\u0441', '\u0422\u0438\u043f', '\u0421\u0443\u043c\u043c\u0430', '\u041f\u0440\u0438\u0447\u0438\u043d\u0430', '\u0417\u0430\u043f\u0438\u0441\u044c', '\u0414\u0430\u0442\u0430', '\u0410\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440/\u0441\u0438\u0441\u0442\u0435\u043c\u0430'];
+const taskColumns = ['\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435', '\u0422\u0438\u043f', '\u041d\u0430\u0433\u0440\u0430\u0434\u0430', '\u0421\u0440\u043e\u043a', '\u041b\u0438\u043c\u0438\u0442', '\u0411\u0438\u0437\u043d\u0435\u0441', '\u0421\u0442\u0430\u0442\u0443\u0441'];
+const promoColumns = ['\u0411\u0438\u0437\u043d\u0435\u0441', '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435', '\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f', '\u0413\u043e\u0440\u043e\u0434', '\u0421\u0442\u0430\u0440\u0442', '\u041e\u043a\u043e\u043d\u0447\u0430\u043d\u0438\u0435', '\u0421\u0442\u0430\u0442\u0443\u0441', '\u041c\u043e\u0434\u0435\u0440\u0430\u0446\u0438\u044f'];
+const moderationColumns = ['\u0422\u0438\u043f', '\u0411\u0438\u0437\u043d\u0435\u0441', '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435', '\u0421\u043e\u0437\u0434\u0430\u043d\u043e', '\u0421\u0442\u0430\u0442\u0443\u0441', '\u0420\u0438\u0441\u043a'];
+const partnerColumns = ['\u0411\u0438\u0437\u043d\u0435\u0441', '\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f', '\u0413\u043e\u0440\u043e\u0434', '\u0412 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0438', '\u041b\u043e\u044f\u043b\u044c\u043d\u043e\u0441\u0442\u044c', '\u041f\u0440\u0438\u043d\u0438\u043c\u0430\u0435\u0442 \u0431\u043e\u043d\u0443\u0441\u044b', '\u041c\u0430\u043a\u0441. % \u0431\u043e\u043d\u0443\u0441\u0430\u043c\u0438', '\u0410\u043a\u0446\u0438\u0439'];
+
 function AppDashboardPage() {
   const dashboard = useQuery({ queryKey: ['admin-app-dashboard'], queryFn: () => api<AppDashboard>('/api/admin/app/dashboard') });
   const data = dashboard.data;
@@ -1264,16 +1307,16 @@ function AppDashboardPage() {
     <section className="page-stack">
       <AppSectionNotice />
       <div className="metrics-grid">
-        <MetricCard icon={<Users />} label="Клиентов приложения" value={data?.metrics.totalClients || 0} hint="всего" />
-        <MetricCard icon={<Activity />} label="Активных за 24 часа" value={data?.metrics.active24h || 0} hint="mobile app" />
-        <MetricCard icon={<CalendarClock />} label="Записей через App" value={data?.metrics.appAppointments || 0} hint="источник Negis App" />
-        <MetricCard icon={<QrCode />} label="QR-приходов" value={data?.metrics.qrArrivals || 0} hint="подтверждено" />
-        <MetricCard icon={<WalletCards />} label="Бонусов начислено" value={data?.metrics.bonusesEarned || 0} hint="за период" />
-        <MetricCard icon={<Megaphone />} label="Активных акций" value={data?.metrics.activePromotions || 0} hint="после модерации" />
+        <MetricCard icon={<Users />} label={appLabels.appClients} value={data?.metrics.totalClients || 0} hint={appLabels.total} />
+        <MetricCard icon={<Activity />} label={appLabels.active24h} value={data?.metrics.active24h || 0} hint="mobile app" />
+        <MetricCard icon={<CalendarClock />} label={appLabels.appAppointments} value={data?.metrics.appAppointments || 0} hint={appLabels.sourceApp} />
+        <MetricCard icon={<QrCode />} label={appLabels.qrArrivals} value={data?.metrics.qrArrivals || 0} hint={appLabels.confirmed} />
+        <MetricCard icon={<WalletCards />} label={appLabels.bonusesEarned} value={data?.metrics.bonusesEarned || 0} hint={appLabels.period} />
+        <MetricCard icon={<Megaphone />} label={appLabels.activePromotions} value={data?.metrics.activePromotions || 0} hint={appLabels.afterModeration} />
       </div>
       <div className="content-grid wide-left">
         <section className="neu panel">
-          <PanelHeader title="Регистрации клиентов по дням" />
+          <PanelHeader title={appLabels.registrationsByDay} />
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={data?.clientRegistrations || []}>
               <CartesianGrid stroke="#d7dde8" strokeDasharray="4 4" />
@@ -1285,13 +1328,13 @@ function AppDashboardPage() {
           </ResponsiveContainer>
         </section>
         <section className="neu panel">
-          <PanelHeader title="Бонусная экономика" />
+          <PanelHeader title={appLabels.bonusEconomy} />
           <InfoRows
             rows={[
-              ['Списано бонусов', String(data?.metrics.bonusesSpent || 0)],
-              ['Выполнено заданий', String(data?.metrics.completedTasks || 0)],
-              ['Бизнесов в лояльности', String(data?.metrics.loyaltyBusinesses || 0)],
-              ['Активных за 7 дней', String(data?.metrics.active7d || 0)]
+              [appLabels.spentBonuses, String(data?.metrics.bonusesSpent || 0)],
+              [appLabels.completedTasks, String(data?.metrics.completedTasks || 0)],
+              [appLabels.loyaltyBusinesses, String(data?.metrics.loyaltyBusinesses || 0)],
+              [appLabels.active7d, String(data?.metrics.active7d || 0)]
             ]}
           />
         </section>
@@ -1301,107 +1344,47 @@ function AppDashboardPage() {
 }
 
 function AppSectionNotice() {
-  return (
-    <div className="notice app-notice">
-      Разделы клиентского приложения подготовлены под реальные API. Демо-данные не используются: пока backend app-модуля не подключен, таблицы будут пустыми.
-    </div>
-  );
+  return <div className="notice app-notice">{appLabels.notice}</div>;
 }
 
 function AppClientsPage() {
   const clients = useQuery({ queryKey: ['admin-app-clients'], queryFn: () => api<{ clients: AppClient[] }>('/api/admin/app/clients') });
-  return (
-    <DataPage
-      title="Клиенты приложения"
-      rows={clients.data?.clients || []}
-      columns={['Имя', 'Телефон', 'Город', 'Регистрация', 'Бонусы', 'Записей', 'Последний визит', 'Статус']}
-      render={(client) => [client.name, client.phone, client.city, formatDate(client.registeredAt), client.bonusBalance, client.appointmentsCount, formatDate(client.lastVisit), statusLabel(client.status)]}
-    />
-  );
+  return <DataPage title={appLabels.clientsTitle} rows={clients.data?.clients || []} columns={clientColumns} render={(client) => [client.name, client.phone, client.city, formatDate(client.registeredAt), client.bonusBalance, client.appointmentsCount, formatDate(client.lastVisit), statusLabel(client.status)]} />;
 }
 
 function AppAppointmentsPage() {
   const appointments = useQuery({ queryKey: ['admin-app-appointments'], queryFn: () => api<{ appointments: AppAppointment[] }>('/api/admin/app/appointments') });
-  return (
-    <DataPage
-      title="Онлайн-записи из Negis App"
-      rows={appointments.data?.appointments || []}
-      columns={['Клиент', 'Бизнес', 'Филиал', 'Услуга', 'Специалист', 'Дата', 'Время', 'Статус', 'Источник', 'QR']}
-      render={(item) => [item.client, item.business, item.branch, item.service, item.specialist, formatDate(item.date), item.time, statusLabel(item.status), item.source, item.qrStatus]}
-    />
-  );
+  return <DataPage title={appLabels.appointmentsTitle} rows={appointments.data?.appointments || []} columns={appointmentColumns} render={(item) => [item.client, item.business, item.branch, item.service, item.specialist, formatDate(item.date), item.time, statusLabel(item.status), item.source, item.qrStatus]} />;
 }
 
 function AppQrPage() {
   const qr = useQuery({ queryKey: ['admin-app-qr'], queryFn: () => api<{ qrCheckins: QrCheckin[] }>('/api/admin/app/qr-checkins') });
-  return (
-    <DataPage
-      title="QR-подтверждения прихода"
-      rows={qr.data?.qrCheckins || []}
-      columns={['Запись', 'Клиент', 'Бизнес', 'Сканировал', 'Время', 'QR статус', 'Устройство/IP', 'Результат']}
-      render={(item) => [item.appointment, item.client, item.business, item.scannedBy, formatTime(item.scannedAt), item.qrStatus, item.device, item.result]}
-    />
-  );
+  return <DataPage title={appLabels.qrTitle} rows={qr.data?.qrCheckins || []} columns={qrColumns} render={(item) => [item.appointment, item.client, item.business, item.scannedBy, formatTime(item.scannedAt), item.qrStatus, item.device, item.result]} />;
 }
 
 function AppBonusesPage() {
   const bonuses = useQuery({ queryKey: ['admin-app-bonuses'], queryFn: () => api<{ transactions: BonusTransaction[] }>('/api/admin/app/bonus-transactions') });
-  return (
-    <DataPage
-      title="Бонусная экономика"
-      rows={bonuses.data?.transactions || []}
-      columns={['Клиент', 'Бизнес', 'Тип', 'Сумма', 'Причина', 'Запись', 'Дата', 'Администратор/система']}
-      render={(item) => [item.client, item.business, item.type, item.amount, item.reason, item.appointment, formatDate(item.createdAt), item.actor]}
-    />
-  );
+  return <DataPage title={appLabels.bonusEconomy} rows={bonuses.data?.transactions || []} columns={bonusColumns} render={(item) => [item.client, item.business, item.type, item.amount, item.reason, item.appointment, formatDate(item.createdAt), item.actor]} />;
 }
 
 function AppTasksPage() {
   const tasks = useQuery({ queryKey: ['admin-app-tasks'], queryFn: () => api<{ tasks: AppTask[] }>('/api/admin/app/tasks') });
-  return (
-    <DataPage
-      title="Задания приложения"
-      rows={tasks.data?.tasks || []}
-      columns={['Название', 'Тип', 'Награда', 'Срок', 'Лимит', 'Бизнес', 'Статус']}
-      render={(task) => [task.title, task.type, task.reward, formatDate(task.expiresAt), task.limit, task.business, statusLabel(task.status)]}
-    />
-  );
+  return <DataPage title={appLabels.tasksTitle} rows={tasks.data?.tasks || []} columns={taskColumns} render={(task) => [task.title, task.type, task.reward, formatDate(task.expiresAt), task.limit, task.business, statusLabel(task.status)]} />;
 }
 
 function AppPromotionsPage() {
   const promotions = useQuery({ queryKey: ['admin-app-promotions'], queryFn: () => api<{ promotions: AppPromotion[] }>('/api/admin/app/promotions') });
-  return (
-    <DataPage
-      title="Акции и реклама"
-      rows={promotions.data?.promotions || []}
-      columns={['Бизнес', 'Название', 'Категория', 'Город', 'Старт', 'Окончание', 'Статус', 'Модерация']}
-      render={(promo) => [promo.business, promo.title, promo.category, promo.city, formatDate(promo.startsAt), formatDate(promo.endsAt), statusLabel(promo.status), promo.moderationStatus]}
-    />
-  );
+  return <DataPage title={appLabels.promotionsTitle} rows={promotions.data?.promotions || []} columns={promoColumns} render={(promo) => [promo.business, promo.title, promo.category, promo.city, formatDate(promo.startsAt), formatDate(promo.endsAt), statusLabel(promo.status), promo.moderationStatus]} />;
 }
 
 function AppModerationPage() {
   const moderation = useQuery({ queryKey: ['admin-app-moderation'], queryFn: () => api<{ items: ModerationItem[] }>('/api/admin/app/moderation') });
-  return (
-    <DataPage
-      title="Модерация"
-      rows={moderation.data?.items || []}
-      columns={['Тип', 'Бизнес', 'Название', 'Создано', 'Статус', 'Риск']}
-      render={(item) => [item.type, item.business, item.title, formatDate(item.createdAt), statusLabel(item.status), item.risk]}
-    />
-  );
+  return <DataPage title={appLabels.moderationTitle} rows={moderation.data?.items || []} columns={moderationColumns} render={(item) => [item.type, item.business, item.title, formatDate(item.createdAt), statusLabel(item.status), item.risk]} />;
 }
 
 function AppPartnersPage() {
   const partners = useQuery({ queryKey: ['admin-app-partners'], queryFn: () => api<{ businesses: AppBusiness[] }>('/api/admin/app/businesses') });
-  return (
-    <DataPage
-      title="Партнеры и бизнесы в приложении"
-      rows={partners.data?.businesses || []}
-      columns={['Бизнес', 'Категория', 'Город', 'В приложении', 'Лояльность', 'Принимает бонусы', 'Макс. % бонусами', 'Акций']}
-      render={(business) => [business.name, business.category, business.city, business.visibleInApp, business.loyaltyEnabled, business.bonusSpendEnabled, business.maxBonusPercent, business.promotionsCount]}
-    />
-  );
+  return <DataPage title={appLabels.partnersTitle} rows={partners.data?.businesses || []} columns={partnerColumns} render={(business) => [business.name, business.category, business.city, business.visibleInApp, business.loyaltyEnabled, business.bonusSpendEnabled, business.maxBonusPercent, business.promotionsCount]} />;
 }
 
 function AppSettingsPage() {
@@ -1412,33 +1395,27 @@ function AppSettingsPage() {
     <section className="page-stack settings-grid">
       <AppSectionNotice />
       <section className="neu panel">
-        <PanelHeader title="Глобальные правила бонусов" />
+        <PanelHeader title={appLabels.globalBonusRules} />
         <InfoRows
           rows={[
-            ['Максимум оплаты бонусами', `${data?.maxBonusPercent ?? 50}%`],
-            ['Бонусы за регистрацию', String(data?.registrationBonus ?? 0)],
-            ['Бонусы за первый визит', String(data?.firstVisitBonus ?? 0)],
-            ['Бонусы за отзыв', String(data?.reviewBonus ?? 0)],
-            ['Бонусы за приглашение друга', String(data?.referralBonus ?? 0)],
-            ['Срок действия бонусов', `${data?.bonusTtlDays ?? 0} дней`]
+            ['\u041c\u0430\u043a\u0441\u0438\u043c\u0443\u043c \u043e\u043f\u043b\u0430\u0442\u044b \u0431\u043e\u043d\u0443\u0441\u0430\u043c\u0438', `${data?.maxBonusPercent ?? 50}%`],
+            ['\u0411\u043e\u043d\u0443\u0441\u044b \u0437\u0430 \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044e', String(data?.registrationBonus ?? 0)],
+            ['\u0411\u043e\u043d\u0443\u0441\u044b \u0437\u0430 \u043f\u0435\u0440\u0432\u044b\u0439 \u0432\u0438\u0437\u0438\u0442', String(data?.firstVisitBonus ?? 0)],
+            ['\u0411\u043e\u043d\u0443\u0441\u044b \u0437\u0430 \u043e\u0442\u0437\u044b\u0432', String(data?.reviewBonus ?? 0)],
+            ['\u0411\u043e\u043d\u0443\u0441\u044b \u0437\u0430 \u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0435\u043d\u0438\u0435 \u0434\u0440\u0443\u0433\u0430', String(data?.referralBonus ?? 0)],
+            ['\u0421\u0440\u043e\u043a \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044f \u0431\u043e\u043d\u0443\u0441\u043e\u0432', `${data?.bonusTtlDays ?? 0} \u0434\u043d\u0435\u0439`]
           ]}
         />
       </section>
       <section className="neu panel">
-        <PanelHeader title="Модули приложения" />
-        <InfoRows
-          rows={[
-            ['Задания', data?.tasksEnabled ? 'включены' : 'выключены'],
-            ['Акции', data?.promotionsEnabled ? 'включены' : 'выключены'],
-            ['Push-уведомления', data?.pushEnabled ? 'включены' : 'выключены']
-          ]}
-        />
+        <PanelHeader title={appLabels.appModules} />
+        <InfoRows rows={[[appLabels.tasksTitle, data?.tasksEnabled ? appLabels.enabled : appLabels.disabled], [appLabels.promotionsTitle, data?.promotionsEnabled ? appLabels.enabled : appLabels.disabled], ['Push-\u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f', data?.pushEnabled ? appLabels.enabled : appLabels.disabled]]} />
       </section>
       <section className="danger-zone neu">
         <AlertTriangle />
         <div>
-          <h3>Финансовые лимиты</h3>
-          <p>Изменения правил бонусов должны логироваться и применяться только через защищенный Admin API.</p>
+          <h3>{appLabels.financialLimits}</h3>
+          <p>{appLabels.financialLimitsHint}</p>
         </div>
       </section>
     </section>

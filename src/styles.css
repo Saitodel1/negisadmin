@@ -1591,7 +1591,7 @@ body::before {
 .app-shell.collapsed {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 78px minmax(0, 1fr);
+  grid-template-columns: 118px minmax(0, 1fr);
   padding-top: 24px;
   background: var(--bg);
 }
@@ -1600,16 +1600,17 @@ body::before {
   position: sticky;
   top: 24px;
   height: calc(100vh - 24px);
-  padding: 22px 14px;
-  align-items: center;
+  padding: 22px 12px 22px 16px;
+  align-items: stretch;
   gap: 10px;
   background: var(--shell-bg);
   border-right: 1px solid var(--line);
 }
 
 .brand {
-  width: 50px;
+  width: 78px;
   min-height: 48px;
+  align-self: center;
   justify-content: center;
   margin-bottom: 26px;
 }
@@ -1635,24 +1636,85 @@ body::before {
 .nav-list {
   width: 100%;
   display: grid;
-  gap: 8px;
+  gap: 10px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-right: 2px;
+  padding: 2px 12px 2px 0;
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: #c5d0dd transparent;
 }
 
+.nav-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.nav-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nav-list::-webkit-scrollbar-thumb {
+  background: #c5d0dd;
+  border-radius: 999px;
+}
+
 .nav-item {
-  width: 48px;
-  min-height: 48px;
+  width: 78px;
+  min-height: 66px;
+  flex-direction: column;
   justify-content: center;
-  padding: 0;
+  gap: 5px;
+  padding: 7px 4px;
   border-radius: 16px;
   color: #63738c;
   background: var(--shell-bg);
   border: 1px solid var(--line);
   box-shadow: none;
+  transform-origin: center;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.nav-item svg {
+  transition: transform 0.18s ease;
+}
+
+.nav-item span {
+  display: block;
+  width: 100%;
+  max-width: 70px;
+  overflow: hidden;
+  color: currentColor;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.72;
+}
+
+.nav-item:hover {
+  z-index: 2;
+  color: #12376f;
+  background: var(--panel);
+  border-color: #cbd8e8;
+  box-shadow: 0 12px 24px rgba(29, 48, 84, 0.14);
+  transform: scale(1.08);
+}
+
+.nav-item:hover svg {
+  transform: scale(1.18);
+}
+
+.nav-item:hover span,
+.nav-item.active span {
+  opacity: 1;
 }
 
 .nav-item.active {
@@ -1679,8 +1741,9 @@ body::before {
 }
 
 .logout-button {
-  width: 48px;
-  min-height: 48px;
+  width: 78px;
+  min-height: 58px;
+  align-self: flex-start;
   margin-top: auto;
   border-radius: 16px;
   color: #63738c;
