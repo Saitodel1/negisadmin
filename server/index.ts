@@ -817,6 +817,129 @@ app.get('/api/logs', requireAuth, async (_req, res) => {
   });
 });
 
+app.get('/api/admin/app/dashboard', requireAuth, (_req, res) => {
+  res.json({
+    metrics: {
+      totalClients: 0,
+      active24h: 0,
+      active7d: 0,
+      appAppointments: 0,
+      qrArrivals: 0,
+      bonusesEarned: 0,
+      bonusesSpent: 0,
+      activePromotions: 0,
+      completedTasks: 0,
+      loyaltyBusinesses: 0
+    },
+    clientRegistrations: [],
+    appointmentStats: [],
+    bonusStats: [],
+    promotionStats: []
+  });
+});
+
+app.get('/api/admin/app/clients', requireAuth, (_req, res) => {
+  res.json({ clients: [] });
+});
+
+app.get('/api/admin/app/clients/:id', requireAuth, (req, res) => {
+  res.status(404).json({ error: `App client ${req.params.id} is not connected yet` });
+});
+
+app.patch('/api/admin/app/clients/:id', requireAuth, (_req, res) => {
+  res.status(501).json({ error: 'App client updates require the Negis App API module' });
+});
+
+app.post('/api/admin/app/clients/:id/block', requireAuth, (_req, res) => {
+  res.status(501).json({ error: 'App client blocking requires the Negis App API module' });
+});
+
+app.post('/api/admin/app/clients/:id/unblock', requireAuth, (_req, res) => {
+  res.status(501).json({ error: 'App client unblocking requires the Negis App API module' });
+});
+
+app.post('/api/admin/app/clients/:id/bonus-adjustment', requireAuth, (_req, res) => {
+  res.status(501).json({ error: 'Manual bonus adjustments require the bonus ledger module' });
+});
+
+app.get('/api/admin/app/appointments', requireAuth, (_req, res) => {
+  res.json({ appointments: [] });
+});
+
+app.get('/api/admin/app/qr-checkins', requireAuth, (_req, res) => {
+  res.json({ qrCheckins: [] });
+});
+
+app.get('/api/admin/app/bonus-transactions', requireAuth, (_req, res) => {
+  res.json({ transactions: [] });
+});
+
+app.get('/api/admin/app/tasks', requireAuth, (_req, res) => {
+  res.json({ tasks: [] });
+});
+
+app.post('/api/admin/app/tasks', requireAuth, (_req, res) => {
+  res.status(501).json({ error: 'Task creation requires the Negis App API module' });
+});
+
+app.patch('/api/admin/app/tasks/:id', requireAuth, (_req, res) => {
+  res.status(501).json({ error: 'Task updates require the Negis App API module' });
+});
+
+app.delete('/api/admin/app/tasks/:id', requireAuth, (_req, res) => {
+  res.status(501).json({ error: 'Task deletion requires the Negis App API module' });
+});
+
+app.get('/api/admin/app/promotions', requireAuth, (_req, res) => {
+  res.json({ promotions: [] });
+});
+
+app.get('/api/admin/app/promotions/:id', requireAuth, (req, res) => {
+  res.status(404).json({ error: `Promotion ${req.params.id} is not connected yet` });
+});
+
+app.post('/api/admin/app/promotions/:id/approve', requireAuth, (_req, res) => {
+  res.status(501).json({ error: 'Promotion approval requires the moderation module' });
+});
+
+app.post('/api/admin/app/promotions/:id/reject', requireAuth, (_req, res) => {
+  res.status(501).json({ error: 'Promotion rejection requires the moderation module' });
+});
+
+app.post('/api/admin/app/promotions/:id/pause', requireAuth, (_req, res) => {
+  res.status(501).json({ error: 'Promotion pause requires the moderation module' });
+});
+
+app.get('/api/admin/app/moderation', requireAuth, (_req, res) => {
+  res.json({ items: [] });
+});
+
+app.get('/api/admin/app/businesses', requireAuth, (_req, res) => {
+  res.json({ businesses: [] });
+});
+
+app.patch('/api/admin/app/businesses/:id/app-settings', requireAuth, (_req, res) => {
+  res.status(501).json({ error: 'Business app settings require the Negis App API module' });
+});
+
+app.get('/api/admin/app/settings', requireAuth, (_req, res) => {
+  res.json({
+    maxBonusPercent: 50,
+    registrationBonus: 0,
+    firstVisitBonus: 0,
+    reviewBonus: 0,
+    referralBonus: 0,
+    bonusTtlDays: 0,
+    tasksEnabled: false,
+    promotionsEnabled: false,
+    pushEnabled: false
+  });
+});
+
+app.patch('/api/admin/app/settings', requireAuth, (_req, res) => {
+  res.status(501).json({ error: 'App settings persistence requires the Negis App API module' });
+});
+
 app.get('/api/settings', requireAuth, (_req, res) => {
   res.json({
     profile: { email: process.env.SUPER_ADMIN_EMAIL },

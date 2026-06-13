@@ -1636,6 +1636,11 @@ body::before {
   width: 100%;
   display: grid;
   gap: 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: #c5d0dd transparent;
 }
 
 .nav-item {
@@ -1654,6 +1659,19 @@ body::before {
   color: #183a75;
   background: var(--panel);
   box-shadow: 0 8px 20px rgba(29, 48, 84, 0.12);
+}
+
+.table-empty {
+  min-height: 118px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-weight: 800;
+  text-align: center;
+}
+
+.app-notice {
+  border-left: 4px solid #f0bd24;
 }
 
 .collapse-button {

@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   ChevronRight,
   CircleDollarSign,
+  ClipboardList,
   Clock3,
   Copy,
   Eye,
@@ -22,14 +23,21 @@ import {
   Gauge,
   Lock,
   LogOut,
+  ListChecks,
+  Megaphone,
+  QrCode,
   RefreshCw,
   ReceiptText,
   Search,
   Settings,
   ShieldAlert,
+  ShieldCheck,
   SlidersHorizontal,
+  Smartphone,
+  Store,
   Trash2,
-  Users
+  Users,
+  WalletCards
 } from 'lucide-react';
 import {
   Bar,
@@ -90,14 +98,150 @@ type ClinicAccess = {
   clinicName: string;
 };
 
+type AppDashboard = {
+  metrics: {
+    totalClients: number;
+    active24h: number;
+    active7d: number;
+    appAppointments: number;
+    qrArrivals: number;
+    bonusesEarned: number;
+    bonusesSpent: number;
+    activePromotions: number;
+    completedTasks: number;
+    loyaltyBusinesses: number;
+  };
+  clientRegistrations: Array<{ date: string; count: number }>;
+  appointmentStats: Array<{ date: string; count: number }>;
+  bonusStats: Array<{ date: string; earned: number; spent: number }>;
+  promotionStats: Array<{ name: string; value: number }>;
+};
+
+type AppClient = {
+  id: string;
+  name: string;
+  phone: string;
+  city: string;
+  registeredAt: string;
+  bonusBalance: number;
+  appointmentsCount: number;
+  lastVisit: string;
+  status: string;
+};
+
+type AppAppointment = {
+  id: string;
+  client: string;
+  business: string;
+  branch: string;
+  service: string;
+  specialist: string;
+  date: string;
+  time: string;
+  status: string;
+  source: string;
+  qrStatus: string;
+};
+
+type QrCheckin = {
+  id: string;
+  appointment: string;
+  client: string;
+  business: string;
+  scannedBy: string;
+  scannedAt: string;
+  qrStatus: string;
+  device: string;
+  result: string;
+};
+
+type BonusTransaction = {
+  id: string;
+  client: string;
+  business: string;
+  type: string;
+  amount: number;
+  reason: string;
+  appointment: string;
+  createdAt: string;
+  actor: string;
+};
+
+type AppTask = {
+  id: string;
+  title: string;
+  type: string;
+  reward: number;
+  expiresAt: string;
+  limit: number;
+  business: string;
+  status: string;
+};
+
+type AppPromotion = {
+  id: string;
+  business: string;
+  title: string;
+  category: string;
+  city: string;
+  startsAt: string;
+  endsAt: string;
+  status: string;
+  moderationStatus: string;
+};
+
+type ModerationItem = {
+  id: string;
+  type: string;
+  business: string;
+  title: string;
+  createdAt: string;
+  status: string;
+  risk: string;
+};
+
+type AppBusiness = {
+  id: string;
+  name: string;
+  category: string;
+  city: string;
+  visibleInApp: string;
+  loyaltyEnabled: string;
+  bonusSpendEnabled: string;
+  maxBonusPercent: number;
+  promotionsCount: number;
+};
+
+type AppSettings = {
+  maxBonusPercent: number;
+  registrationBonus: number;
+  firstVisitBonus: number;
+  reviewBonus: number;
+  referralBonus: number;
+  bonusTtlDays: number;
+  tasksEnabled: boolean;
+  promotionsEnabled: boolean;
+  pushEnabled: boolean;
+};
+
 const navItems = [
-  { label: 'Дашборд', path: '/dashboard', icon: Gauge },
-  { label: 'Клиники', path: '/clinics', icon: Building2 },
-  { label: 'Пользователи', path: '/users', icon: Users },
-  { label: 'Подписки', path: '/subscriptions', icon: BadgeDollarSign },
-  { label: 'Финансы', path: '/finances', icon: CircleDollarSign },
-  { label: 'Логи', path: '/logs', icon: Activity },
-  { label: 'Настройки', path: '/settings', icon: Settings }
+  { label: '???????', path: '/dashboard', icon: Gauge },
+  { label: '???????', path: '/clinics', icon: Building2 },
+  { label: '????????????', path: '/users', icon: Users },
+  { label: '????????', path: '/subscriptions', icon: BadgeDollarSign },
+  { label: '???????', path: '/finances', icon: CircleDollarSign },
+  { label: '????', path: '/logs', icon: Activity },
+  { label: 'App Dashboard', path: '/app-dashboard', icon: Smartphone },
+  { label: '??????? App', path: '/app-clients', icon: Users },
+  { label: '??????-??????', path: '/app-appointments', icon: ClipboardList },
+  { label: 'QR-???????', path: '/app-qr', icon: QrCode },
+  { label: '??????', path: '/app-bonuses', icon: WalletCards },
+  { label: '???????', path: '/app-tasks', icon: ListChecks },
+  { label: '?????', path: '/app-promotions', icon: Megaphone },
+  { label: '?????????', path: '/app-moderation', icon: ShieldCheck },
+  { label: '????????', path: '/app-partners', icon: Store },
+  { label: 'App ?????????', path: '/app-settings', icon: Settings },
+  { label: '?????????', path: '/settings', icon: Settings }
 ];
 
 const colors = ['#1A56DB', '#10B981', '#F59E0B', '#EF4444', '#64748B', '#8B5CF6'];
@@ -398,6 +542,16 @@ function Shell() {
           <Route path="/subscriptions" element={<SubscriptionsPage />} />
           <Route path="/finances" element={<FinancesPage />} />
           <Route path="/logs" element={<LogsPage />} />
+          <Route path="/app-dashboard" element={<AppDashboardPage />} />
+          <Route path="/app-clients" element={<AppClientsPage />} />
+          <Route path="/app-appointments" element={<AppAppointmentsPage />} />
+          <Route path="/app-qr" element={<AppQrPage />} />
+          <Route path="/app-bonuses" element={<AppBonusesPage />} />
+          <Route path="/app-tasks" element={<AppTasksPage />} />
+          <Route path="/app-promotions" element={<AppPromotionsPage />} />
+          <Route path="/app-moderation" element={<AppModerationPage />} />
+          <Route path="/app-partners" element={<AppPartnersPage />} />
+          <Route path="/app-settings" element={<AppSettingsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
@@ -1100,6 +1254,197 @@ function LogsPage() {
   );
 }
 
+function AppDashboardPage() {
+  const dashboard = useQuery({ queryKey: ['admin-app-dashboard'], queryFn: () => api<AppDashboard>('/api/admin/app/dashboard') });
+  const data = dashboard.data;
+
+  if (dashboard.isLoading) return <SkeletonGrid />;
+
+  return (
+    <section className="page-stack">
+      <AppSectionNotice />
+      <div className="metrics-grid">
+        <MetricCard icon={<Users />} label="Клиентов приложения" value={data?.metrics.totalClients || 0} hint="всего" />
+        <MetricCard icon={<Activity />} label="Активных за 24 часа" value={data?.metrics.active24h || 0} hint="mobile app" />
+        <MetricCard icon={<CalendarClock />} label="Записей через App" value={data?.metrics.appAppointments || 0} hint="источник Negis App" />
+        <MetricCard icon={<QrCode />} label="QR-приходов" value={data?.metrics.qrArrivals || 0} hint="подтверждено" />
+        <MetricCard icon={<WalletCards />} label="Бонусов начислено" value={data?.metrics.bonusesEarned || 0} hint="за период" />
+        <MetricCard icon={<Megaphone />} label="Активных акций" value={data?.metrics.activePromotions || 0} hint="после модерации" />
+      </div>
+      <div className="content-grid wide-left">
+        <section className="neu panel">
+          <PanelHeader title="Регистрации клиентов по дням" />
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={data?.clientRegistrations || []}>
+              <CartesianGrid stroke="#d7dde8" strokeDasharray="4 4" />
+              <XAxis dataKey="date" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Line dataKey="count" stroke="#1A56DB" strokeWidth={3} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </section>
+        <section className="neu panel">
+          <PanelHeader title="Бонусная экономика" />
+          <InfoRows
+            rows={[
+              ['Списано бонусов', String(data?.metrics.bonusesSpent || 0)],
+              ['Выполнено заданий', String(data?.metrics.completedTasks || 0)],
+              ['Бизнесов в лояльности', String(data?.metrics.loyaltyBusinesses || 0)],
+              ['Активных за 7 дней', String(data?.metrics.active7d || 0)]
+            ]}
+          />
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function AppSectionNotice() {
+  return (
+    <div className="notice app-notice">
+      Разделы клиентского приложения подготовлены под реальные API. Демо-данные не используются: пока backend app-модуля не подключен, таблицы будут пустыми.
+    </div>
+  );
+}
+
+function AppClientsPage() {
+  const clients = useQuery({ queryKey: ['admin-app-clients'], queryFn: () => api<{ clients: AppClient[] }>('/api/admin/app/clients') });
+  return (
+    <DataPage
+      title="Клиенты приложения"
+      rows={clients.data?.clients || []}
+      columns={['Имя', 'Телефон', 'Город', 'Регистрация', 'Бонусы', 'Записей', 'Последний визит', 'Статус']}
+      render={(client) => [client.name, client.phone, client.city, formatDate(client.registeredAt), client.bonusBalance, client.appointmentsCount, formatDate(client.lastVisit), statusLabel(client.status)]}
+    />
+  );
+}
+
+function AppAppointmentsPage() {
+  const appointments = useQuery({ queryKey: ['admin-app-appointments'], queryFn: () => api<{ appointments: AppAppointment[] }>('/api/admin/app/appointments') });
+  return (
+    <DataPage
+      title="Онлайн-записи из Negis App"
+      rows={appointments.data?.appointments || []}
+      columns={['Клиент', 'Бизнес', 'Филиал', 'Услуга', 'Специалист', 'Дата', 'Время', 'Статус', 'Источник', 'QR']}
+      render={(item) => [item.client, item.business, item.branch, item.service, item.specialist, formatDate(item.date), item.time, statusLabel(item.status), item.source, item.qrStatus]}
+    />
+  );
+}
+
+function AppQrPage() {
+  const qr = useQuery({ queryKey: ['admin-app-qr'], queryFn: () => api<{ qrCheckins: QrCheckin[] }>('/api/admin/app/qr-checkins') });
+  return (
+    <DataPage
+      title="QR-подтверждения прихода"
+      rows={qr.data?.qrCheckins || []}
+      columns={['Запись', 'Клиент', 'Бизнес', 'Сканировал', 'Время', 'QR статус', 'Устройство/IP', 'Результат']}
+      render={(item) => [item.appointment, item.client, item.business, item.scannedBy, formatTime(item.scannedAt), item.qrStatus, item.device, item.result]}
+    />
+  );
+}
+
+function AppBonusesPage() {
+  const bonuses = useQuery({ queryKey: ['admin-app-bonuses'], queryFn: () => api<{ transactions: BonusTransaction[] }>('/api/admin/app/bonus-transactions') });
+  return (
+    <DataPage
+      title="Бонусная экономика"
+      rows={bonuses.data?.transactions || []}
+      columns={['Клиент', 'Бизнес', 'Тип', 'Сумма', 'Причина', 'Запись', 'Дата', 'Администратор/система']}
+      render={(item) => [item.client, item.business, item.type, item.amount, item.reason, item.appointment, formatDate(item.createdAt), item.actor]}
+    />
+  );
+}
+
+function AppTasksPage() {
+  const tasks = useQuery({ queryKey: ['admin-app-tasks'], queryFn: () => api<{ tasks: AppTask[] }>('/api/admin/app/tasks') });
+  return (
+    <DataPage
+      title="Задания приложения"
+      rows={tasks.data?.tasks || []}
+      columns={['Название', 'Тип', 'Награда', 'Срок', 'Лимит', 'Бизнес', 'Статус']}
+      render={(task) => [task.title, task.type, task.reward, formatDate(task.expiresAt), task.limit, task.business, statusLabel(task.status)]}
+    />
+  );
+}
+
+function AppPromotionsPage() {
+  const promotions = useQuery({ queryKey: ['admin-app-promotions'], queryFn: () => api<{ promotions: AppPromotion[] }>('/api/admin/app/promotions') });
+  return (
+    <DataPage
+      title="Акции и реклама"
+      rows={promotions.data?.promotions || []}
+      columns={['Бизнес', 'Название', 'Категория', 'Город', 'Старт', 'Окончание', 'Статус', 'Модерация']}
+      render={(promo) => [promo.business, promo.title, promo.category, promo.city, formatDate(promo.startsAt), formatDate(promo.endsAt), statusLabel(promo.status), promo.moderationStatus]}
+    />
+  );
+}
+
+function AppModerationPage() {
+  const moderation = useQuery({ queryKey: ['admin-app-moderation'], queryFn: () => api<{ items: ModerationItem[] }>('/api/admin/app/moderation') });
+  return (
+    <DataPage
+      title="Модерация"
+      rows={moderation.data?.items || []}
+      columns={['Тип', 'Бизнес', 'Название', 'Создано', 'Статус', 'Риск']}
+      render={(item) => [item.type, item.business, item.title, formatDate(item.createdAt), statusLabel(item.status), item.risk]}
+    />
+  );
+}
+
+function AppPartnersPage() {
+  const partners = useQuery({ queryKey: ['admin-app-partners'], queryFn: () => api<{ businesses: AppBusiness[] }>('/api/admin/app/businesses') });
+  return (
+    <DataPage
+      title="Партнеры и бизнесы в приложении"
+      rows={partners.data?.businesses || []}
+      columns={['Бизнес', 'Категория', 'Город', 'В приложении', 'Лояльность', 'Принимает бонусы', 'Макс. % бонусами', 'Акций']}
+      render={(business) => [business.name, business.category, business.city, business.visibleInApp, business.loyaltyEnabled, business.bonusSpendEnabled, business.maxBonusPercent, business.promotionsCount]}
+    />
+  );
+}
+
+function AppSettingsPage() {
+  const settings = useQuery({ queryKey: ['admin-app-settings'], queryFn: () => api<AppSettings>('/api/admin/app/settings') });
+  const data = settings.data;
+
+  return (
+    <section className="page-stack settings-grid">
+      <AppSectionNotice />
+      <section className="neu panel">
+        <PanelHeader title="Глобальные правила бонусов" />
+        <InfoRows
+          rows={[
+            ['Максимум оплаты бонусами', `${data?.maxBonusPercent ?? 50}%`],
+            ['Бонусы за регистрацию', String(data?.registrationBonus ?? 0)],
+            ['Бонусы за первый визит', String(data?.firstVisitBonus ?? 0)],
+            ['Бонусы за отзыв', String(data?.reviewBonus ?? 0)],
+            ['Бонусы за приглашение друга', String(data?.referralBonus ?? 0)],
+            ['Срок действия бонусов', `${data?.bonusTtlDays ?? 0} дней`]
+          ]}
+        />
+      </section>
+      <section className="neu panel">
+        <PanelHeader title="Модули приложения" />
+        <InfoRows
+          rows={[
+            ['Задания', data?.tasksEnabled ? 'включены' : 'выключены'],
+            ['Акции', data?.promotionsEnabled ? 'включены' : 'выключены'],
+            ['Push-уведомления', data?.pushEnabled ? 'включены' : 'выключены']
+          ]}
+        />
+      </section>
+      <section className="danger-zone neu">
+        <AlertTriangle />
+        <div>
+          <h3>Финансовые лимиты</h3>
+          <p>Изменения правил бонусов должны логироваться и применяться только через защищенный Admin API.</p>
+        </div>
+      </section>
+    </section>
+  );
+}
+
 function SettingsPage() {
   const settings = useQuery({
     queryKey: ['settings'],
@@ -1185,27 +1530,37 @@ function DataPage<T extends { id: string }>({
             </tr>
           </thead>
           <tbody>
-            {visibleRows.map((row) => (
-              <tr key={row.id}>
-                {render(row).map((cell, index) => (
-                  <td key={index}>{cell}</td>
-                ))}
-                <td>
-                  <button
-                    className="mini-button"
-                    onClick={() => {
-                      if (onOpen) {
-                        onOpen(row);
-                        return;
-                      }
-                      setSelectedRow(row);
-                    }}
-                  >
-                    {actionLabel}
-                  </button>
+            {visibleRows.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length + 1}>
+                  <div className="table-empty">
+                    Нет данных. Раздел готов к подключению реального API.
+                  </div>
                 </td>
               </tr>
-            ))}
+            ) : (
+              visibleRows.map((row) => (
+                <tr key={row.id}>
+                  {render(row).map((cell, index) => (
+                    <td key={index}>{cell}</td>
+                  ))}
+                  <td>
+                    <button
+                      className="mini-button"
+                      onClick={() => {
+                        if (onOpen) {
+                          onOpen(row);
+                          return;
+                        }
+                        setSelectedRow(row);
+                      }}
+                    >
+                      {actionLabel}
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
