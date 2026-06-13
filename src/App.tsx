@@ -225,22 +225,15 @@ type AppSettings = {
 };
 
 const navItems = [
-  { label: '\u0414\u0430\u0448\u0431\u043e\u0440\u0434', path: '/dashboard', icon: Gauge },
+  { label: '\u0413\u043b\u0430\u0432\u043d\u0430\u044f', path: '/dashboard', icon: Gauge },
   { label: '\u041a\u043b\u0438\u043d\u0438\u043a\u0438', path: '/clinics', icon: Building2 },
-  { label: '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0438', path: '/users', icon: Users },
-  { label: '\u041f\u043e\u0434\u043f\u0438\u0441\u043a\u0438', path: '/subscriptions', icon: BadgeDollarSign },
-  { label: '\u0424\u0438\u043d\u0430\u043d\u0441\u044b', path: '/finances', icon: CircleDollarSign },
-  { label: '\u041b\u043e\u0433\u0438', path: '/logs', icon: Activity },
-  { label: 'App Dashboard', path: '/app-dashboard', icon: Smartphone },
-  { label: '\u041a\u043b\u0438\u0435\u043d\u0442\u044b App', path: '/app-clients', icon: Users },
-  { label: '\u041e\u043d\u043b\u0430\u0439\u043d-\u0437\u0430\u043f\u0438\u0441\u0438', path: '/app-appointments', icon: ClipboardList },
-  { label: 'QR-\u043f\u0440\u0438\u0445\u043e\u0434\u044b', path: '/app-qr', icon: QrCode },
-  { label: '\u0411\u043e\u043d\u0443\u0441\u044b', path: '/app-bonuses', icon: WalletCards },
-  { label: '\u0417\u0430\u0434\u0430\u043d\u0438\u044f', path: '/app-tasks', icon: ListChecks },
-  { label: '\u0410\u043a\u0446\u0438\u0438', path: '/app-promotions', icon: Megaphone },
-  { label: '\u041c\u043e\u0434\u0435\u0440\u0430\u0446\u0438\u044f', path: '/app-moderation', icon: ShieldCheck },
-  { label: '\u041f\u0430\u0440\u0442\u043d\u0435\u0440\u044b', path: '/app-partners', icon: Store },
-  { label: 'App \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438', path: '/app-settings', icon: Settings },
+  { label: '\u0411\u0438\u043b\u043b\u0438\u043d\u0433', path: '/billing', icon: BadgeDollarSign },
+  { label: '\u0410\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u0430', path: '/analytics', icon: Activity },
+  { label: '\u041c\u043e\u043d\u0438\u0442\u043e\u0440\u0438\u043d\u0433', path: '/monitoring', icon: ShieldAlert },
+  { label: '\u041f\u043e\u0434\u0434\u0435\u0440\u0436\u043a\u0430', path: '/support', icon: Bell },
+  { label: '\u0418\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u0438', path: '/integrations', icon: SlidersHorizontal },
+  { label: 'Negis App', path: '/app-dashboard', icon: Smartphone },
+  { label: '\u041a\u043e\u043c\u0430\u043d\u0434\u0430', path: '/team', icon: Users },
   { label: '\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438', path: '/settings', icon: Settings }
 ];
 
@@ -538,10 +531,16 @@ function Shell() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/clinics" element={<ClinicsPage />} />
           <Route path="/clinics/:id" element={<ClinicDetailPage />} />
-          <Route path="/users" element={<UsersPage />} />
-          <Route path="/subscriptions" element={<SubscriptionsPage />} />
-          <Route path="/finances" element={<FinancesPage />} />
-          <Route path="/logs" element={<LogsPage />} />
+          <Route path="/billing" element={<BillingPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/monitoring" element={<MonitoringPage />} />
+          <Route path="/support" element={<SupportPage />} />
+          <Route path="/integrations" element={<IntegrationsPage />} />
+          <Route path="/team" element={<TeamPage />} />
+          <Route path="/users" element={<Navigate to="/team" replace />} />
+          <Route path="/subscriptions" element={<Navigate to="/billing" replace />} />
+          <Route path="/finances" element={<Navigate to="/billing" replace />} />
+          <Route path="/logs" element={<Navigate to="/monitoring" replace />} />
           <Route path="/app-dashboard" element={<AppDashboardPage />} />
           <Route path="/app-clients" element={<AppClientsPage />} />
           <Route path="/app-appointments" element={<AppAppointmentsPage />} />
@@ -580,28 +579,65 @@ function StatusBadge({ status }: { status: string }) {
 function DashboardPage() {
   const overview = useQuery({ queryKey: ['overview'], queryFn: () => api<Overview>('/api/overview') });
   const data = overview.data;
+  const clinics = data?.clinics || [];
+  const blocked = clinics.filter((clinic) => clinic.status === 'blocked').length;
+  const trial = clinics.filter((clinic) => clinic.status === 'trial').length;
+  const noActivity = clinics.filter((clinic) => {
+    if (!clinic.lastActivity) return true;
+    return Date.now() - new Date(clinic.lastActivity).getTime() > 7 * 86400000;
+  }).length;
 
   if (overview.isLoading) return <SkeletonGrid />;
 
   return (
     <section className="page-stack">
-      {data?.mode === 'mock' && <div className="notice">Сейчас показан демо-режим. После заполнения `.env` API подключится к Supabase.</div>}
+      {data?.mode === 'mock' && <div className="notice">Live API is not connected yet. Fill `.env` to switch from mock mode to Supabase.</div>}
+      <section className="control-hero neu-lg">
+        <div>
+          <span className="section-kicker">SaaS Control Center</span>
+          <h1>Negis Operations Center</h1>
+          <p>Clinics, revenue, risks, support and platform health in one executive workspace.</p>
+        </div>
+        <div className="hero-monogram">N</div>
+      </section>
       <div className="metrics-grid">
-        <MetricCard icon={<Building2 />} label="Всего клиник" value={data?.metrics.totalClinics || 0} hint="+ за всё время" />
-        <MetricCard icon={<CheckCircle2 />} label="Активных сегодня" value={data?.metrics.activeToday || 0} hint="за 24 часа" />
-        <MetricCard icon={<CalendarClock />} label="Новых за 7 дней" value={data?.metrics.newClinics7d || 0} hint="регистрации" />
-        <MetricCard icon={<Users />} label="Всего лидов" value={data?.metrics.totalLeads || 0} hint="по всем клиникам" />
-        <MetricCard icon={<Bell />} label="Записей сегодня" value={data?.metrics.bookingsToday || 0} hint="live counter" />
-        <MetricCard icon={<CircleDollarSign />} label="Выручка платформы" value={formatMoney(data?.metrics.revenueMonth || 0)} hint="этот месяц" />
+        <MetricCard icon={<Building2 />} label="Clinics" value={data?.metrics.totalClinics || 0} hint="under management" />
+        <MetricCard icon={<CheckCircle2 />} label="Active today" value={data?.metrics.activeToday || 0} hint="last 24 hours" />
+        <MetricCard icon={<CalendarClock />} label="New in 7 days" value={data?.metrics.newClinics7d || 0} hint="growth" />
+        <MetricCard icon={<Users />} label="CRM leads" value={data?.metrics.totalLeads || 0} hint="all clinics" />
+        <MetricCard icon={<Bell />} label="Bookings today" value={data?.metrics.bookingsToday || 0} hint="operations" />
+        <MetricCard icon={<CircleDollarSign />} label="Platform MRR" value={formatMoney(data?.metrics.revenueMonth || 0)} hint="current month" />
       </div>
       <div className="content-grid wide-left">
         <section className="neu panel">
-          <PanelHeader title="Активность клиник сегодня" action="Сортировка по активности" />
+          <PanelHeader title="Clinics requiring attention" action="health score" />
           <ClinicTable clinics={data?.clinics || []} compact />
         </section>
         <section className="neu panel">
-          <PanelHeader title="Лиды по источникам" />
-          <ResponsiveContainer width="100%" height={280}>
+          <PanelHeader title="Today focus" action="auto priority" />
+          <div className="task-stack">
+            <ActionTile tone="gold" title="Trial clinics" value={trial} text="Check onboarding quality and payment readiness." />
+            <ActionTile tone="red" title="Blocked clinics" value={blocked} text="Review payment, risk or access reasons." />
+            <ActionTile tone="blue" title="No activity" value={noActivity} text="Contact clinics with no activity for more than 7 days." />
+          </div>
+        </section>
+      </div>
+      <div className="content-grid wide-left">
+        <section className="neu panel">
+          <PanelHeader title="Clinic registrations" />
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={data?.registrationStats || []}>
+              <CartesianGrid stroke="#d7dde8" strokeDasharray="4 4" />
+              <XAxis dataKey="date" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Line dataKey="count" stroke="#0f62fe" strokeWidth={3} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </section>
+        <section className="neu panel">
+          <PanelHeader title="Lead sources" />
+          <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie data={data?.sourceStats || []} dataKey="value" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={4}>
                 {(data?.sourceStats || []).map((_, index) => <Cell key={index} fill={colors[index % colors.length]} />)}
@@ -611,19 +647,19 @@ function DashboardPage() {
           </ResponsiveContainer>
         </section>
       </div>
-      <section className="neu panel">
-        <PanelHeader title="Регистрации по дням" />
-        <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={data?.registrationStats || []}>
-            <CartesianGrid stroke="#d7dde8" strokeDasharray="4 4" />
-            <XAxis dataKey="date" />
-            <YAxis allowDecimals={false} />
-            <Tooltip />
-            <Line dataKey="count" stroke="#1A56DB" strokeWidth={3} dot={false} />
-          </LineChart>
-        </ResponsiveContainer>
-      </section>
     </section>
+  );
+}
+
+function ActionTile({ title, value, text, tone }: { title: string; value: string | number; text: string; tone: 'blue' | 'gold' | 'red' }) {
+  return (
+    <article className={`action-tile ${tone}`}>
+      <strong>{value}</strong>
+      <div>
+        <h4>{title}</h4>
+        <p>{text}</p>
+      </div>
+    </article>
   );
 }
 
@@ -1418,6 +1454,276 @@ function AppSettingsPage() {
           <p>{appLabels.financialLimitsHint}</p>
         </div>
       </section>
+    </section>
+  );
+}
+
+function BillingPage() {
+  const navigate = useNavigate();
+  const subscriptions = useQuery({
+    queryKey: ['subscriptions'],
+    queryFn: () =>
+      api<{
+        subscriptions: Array<{ id: string; clinicId: string; clinic: string; plan: string; startsAt: string; endsAt: string; amount: number; status: string }>;
+        plans: Plan[];
+      }>('/api/subscriptions')
+  });
+  const finances = useQuery({
+    queryKey: ['finances'],
+    queryFn: () =>
+      api<{
+        revenueMonth: number;
+        revenuePrevious: number;
+        forecast: number;
+        byMonth: Array<{ month: string; revenue: number }>;
+        byPlan: Array<{ name: string; value: number }>;
+        payments: Array<{ id: string; clinicId: string; clinic: string; plan: string; amount: number; method: string; createdAt: string; status: string }>;
+      }>('/api/finances')
+  });
+  const subscriptionRows = subscriptions.data?.subscriptions || [];
+  const activeSubscriptions = subscriptionRows.filter((sub) => sub.status === 'active');
+  const expiringSoon = subscriptionRows.filter((sub) => {
+    if (!sub.endsAt) return false;
+    const daysLeft = (new Date(sub.endsAt).getTime() - Date.now()) / 86400000;
+    return daysLeft >= 0 && daysLeft <= 7;
+  }).length;
+
+  return (
+    <section className="page-stack">
+      <ModuleHero kicker="Billing OS" title="Billing and Plans" text="Invoices, subscriptions, trial periods, plan limits and revenue forecast." accent="B" />
+      <div className="metrics-grid four">
+        <MetricCard icon={<CheckCircle2 />} label="Active subscriptions" value={activeSubscriptions.length} hint="paid access" />
+        <MetricCard icon={<CalendarClock />} label="Expiring soon" value={expiringSoon} hint="next 7 days" />
+        <MetricCard icon={<CircleDollarSign />} label="MRR" value={formatMoney(finances.data?.revenueMonth || 0)} hint="current month" />
+        <MetricCard icon={<BadgeDollarSign />} label="Forecast" value={formatMoney(finances.data?.forecast || 0)} hint="next month" />
+      </div>
+      <div className="content-grid wide-left">
+        <section className="neu panel">
+          <PanelHeader title="Revenue by month" />
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={finances.data?.byMonth || []}>
+              <CartesianGrid stroke="#d7dde8" strokeDasharray="4 4" />
+              <XAxis dataKey="month" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="revenue" fill="#0f62fe" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </section>
+        <section className="neu panel">
+          <PanelHeader title="Plan packages" action="Start / Pro / Max" />
+          <div className="tariff-stack">
+            {(subscriptions.data?.plans || []).map((plan) => (
+              <div className="tariff-row" key={plan.name}>
+                <span>{plan.name.slice(0, 1)}</span>
+                <div>
+                  <strong>{plan.name}</strong>
+                  <p>{plan.limits}</p>
+                </div>
+                <b>{formatMoney(plan.price)}</b>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+      <DataPage
+        title="Clinic subscriptions"
+        rows={subscriptionRows}
+        columns={['Clinic', 'Plan', 'Start', 'End', 'Amount', 'Status']}
+        render={(sub) => [sub.clinic, sub.plan, formatDate(sub.startsAt), formatDate(sub.endsAt), formatMoney(sub.amount), statusLabel(sub.status)]}
+        actionLabel="Open clinic"
+        onOpen={(sub) => navigate(`/clinics/${sub.clinicId}`)}
+        embedded
+      />
+      <DataPage
+        title="Payment history"
+        rows={finances.data?.payments || []}
+        columns={['Clinic', 'Plan', 'Amount', 'Method', 'Date', 'Status']}
+        render={(payment) => [payment.clinic, payment.plan, formatMoney(payment.amount), payment.method, formatDate(payment.createdAt), statusLabel(payment.status)]}
+        actionLabel="Clinic"
+        onOpen={(payment) => navigate(`/clinics/${payment.clinicId}`)}
+        embedded
+      />
+    </section>
+  );
+}
+
+function AnalyticsPage() {
+  const overview = useQuery({ queryKey: ['overview'], queryFn: () => api<Overview>('/api/overview') });
+  const finances = useQuery({ queryKey: ['finances'], queryFn: () => api<{ revenueMonth: number; forecast: number; byMonth: Array<{ month: string; revenue: number }>; byPlan: Array<{ name: string; value: number }> }>('/api/finances') });
+  const data = overview.data;
+  const avgLeads = data?.metrics.totalClinics ? Math.round(data.metrics.totalLeads / data.metrics.totalClinics) : 0;
+
+  return (
+    <section className="page-stack">
+      <ModuleHero kicker="Analytics" title="SaaS Analytics" text="Growth, clinic activity, MRR, lead sources and product signals for management decisions." accent="A" />
+      <div className="metrics-grid four">
+        <MetricCard icon={<CircleDollarSign />} label="MRR" value={formatMoney(finances.data?.revenueMonth || 0)} hint="monthly revenue" />
+        <MetricCard icon={<Activity />} label="Avg leads" value={avgLeads} hint="per clinic" />
+        <MetricCard icon={<Building2 />} label="Clinics" value={data?.metrics.totalClinics || 0} hint="database" />
+        <MetricCard icon={<CalendarClock />} label="New 7d" value={data?.metrics.newClinics7d || 0} hint="growth pace" />
+      </div>
+      <div className="content-grid wide-left">
+        <section className="neu panel">
+          <PanelHeader title="Revenue growth" />
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={finances.data?.byMonth || []}>
+              <CartesianGrid stroke="#d7dde8" strokeDasharray="4 4" />
+              <XAxis dataKey="month" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="revenue" fill="#6d5dfc" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </section>
+        <section className="neu panel">
+          <PanelHeader title="Revenue by plan" />
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie data={finances.data?.byPlan || []} dataKey="value" nameKey="name" innerRadius={52} outerRadius={92} paddingAngle={4}>
+                {(finances.data?.byPlan || []).map((_, index) => <Cell key={index} fill={colors[index % colors.length]} />)}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function MonitoringPage() {
+  const logs = useQuery({ queryKey: ['logs'], queryFn: () => api<{ logs: Array<{ id: string; time: string; clinic: string; user: string; action: string; details: string; ip: string }> }>('/api/logs') });
+  const logRows = logs.data?.logs || [];
+  const critical = logRows.filter((log) => /delete|blocked|error|fail|remove/i.test(`${log.action} ${log.details}`)).length;
+
+  return (
+    <section className="page-stack">
+      <ModuleHero kicker="Ops Monitor" title="Monitoring and Audit" text="Platform health, errors, logins, critical actions and change history." accent="M" />
+      <div className="metrics-grid four">
+        <MetricCard icon={<ShieldCheck />} label="Status" value="ONLINE" hint="admin is responding" />
+        <MetricCard icon={<ShieldAlert />} label="Critical events" value={critical} hint="from logs" />
+        <MetricCard icon={<Activity />} label="Log entries" value={logRows.length} hint="super_logs" />
+        <MetricCard icon={<Clock3 />} label="Last entry" value={logRows[0] ? formatTime(logRows[0].time) : '?'} hint="audit" />
+      </div>
+      <DataPage
+        title="Action audit"
+        rows={logRows}
+        columns={['Time', 'Clinic', 'User', 'Action', 'Details', 'IP']}
+        render={(log) => [formatTime(log.time), log.clinic, log.user, log.action, log.details, log.ip]}
+        embedded
+      />
+    </section>
+  );
+}
+
+function SupportPage() {
+  return (
+    <SaaSModulePage
+      kicker="Support Desk"
+      title="Clinic Support"
+      accent="S"
+      text="Single queue for clinic onboarding, data migration, ad accounts, CRM issues and client communication."
+      cards={[
+        ['New tickets', '0', 'waiting for support API'],
+        ['In progress', '0', 'owner assignment'],
+        ['SLA today', '0', 'response control'],
+        ['Escalations', '0', 'critical clinics']
+      ]}
+      blocks={[
+        ['Ticket queue', 'Clinic requests, statuses, assignees, comments and communication history.'],
+        ['Fast actions', 'Open clinic, enter CRM, create task and send email to the owner.'],
+        ['Knowledge base', 'Playbooks for lead import, Facebook/TikTok, WhatsApp and access recovery.']
+      ]}
+    />
+  );
+}
+
+function IntegrationsPage() {
+  return (
+    <SaaSModulePage
+      kicker="Integration Hub"
+      title="Integrations"
+      accent="I"
+      text="Connection center for ads, messengers, email, API keys, webhooks, domains and sync statuses."
+      cards={[
+        ['Facebook Ads', 'API', 'leads and pixel'],
+        ['TikTok Ads', 'API', 'leads and events'],
+        ['WhatsApp', 'WA', 'notifications and chats'],
+        ['Email', 'Zoho', 'password reset and invoices']
+      ]}
+      blocks={[
+        ['Connection status', 'Connected, error, last sync and clinics with active integrations.'],
+        ['API and Webhooks', 'Keys, request signatures, incoming lead journal and retry queue.'],
+        ['Domains and Pixels', 'crm.negis.online, admin.negis.online, Meta/TikTok pixels and domain verification.']
+      ]}
+    />
+  );
+}
+
+function TeamPage() {
+  const navigate = useNavigate();
+  const users = useQuery({
+    queryKey: ['users'],
+    queryFn: () =>
+      api<{
+        users: Array<{ id: string; clinicId: string; name: string; email: string; clinic: string; plan: string; createdAt: string; lastLogin: string; kyc: string }>;
+      }>('/api/users')
+  });
+
+  return (
+    <section className="page-stack">
+      <ModuleHero kicker="Access Control" title="Team and Access" text="Negis team, support roles and clinic owners. Business employees are managed inside each clinic profile." accent="T" />
+      <div className="metrics-grid four">
+        <MetricCard icon={<Users />} label="Accounts" value={users.data?.users.length || 0} hint="owners and admins" />
+        <MetricCard icon={<ShieldCheck />} label="Owner" value="1" hint="root access" />
+        <MetricCard icon={<Lock />} label="Policy" value="RBAC" hint="roles and rights" />
+        <MetricCard icon={<Activity />} label="Audit" value="ON" hint="dangerous actions" />
+      </div>
+      <DataPage
+        title="Clinic users"
+        rows={users.data?.users || []}
+        columns={['Name', 'Email', 'Clinic', 'Plan', 'Created', 'Last login', 'KYC']}
+        render={(user) => [user.name, user.email, user.clinic, user.plan, formatDate(user.createdAt), relativeTime(user.lastLogin), statusLabel(user.kyc)]}
+        actionLabel="Open clinic"
+        onOpen={(user) => navigate(`/clinics/${user.clinicId}`)}
+        embedded
+      />
+    </section>
+  );
+}
+
+function SaaSModulePage({ kicker, title, text, accent, cards, blocks }: { kicker: string; title: string; text: string; accent: string; cards: Array<[string, string, string]>; blocks: Array<[string, string]> }) {
+  return (
+    <section className="page-stack">
+      <ModuleHero kicker={kicker} title={title} text={text} accent={accent} />
+      <div className="metrics-grid four">
+        {cards.map(([label, value, hint]) => (
+          <MetricCard key={label} icon={<CheckCircle2 />} label={label} value={value} hint={hint} />
+        ))}
+      </div>
+      <section className="module-grid">
+        {blocks.map(([blockTitle, blockText], index) => (
+          <article className="module-card neu" key={blockTitle}>
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            <h3>{blockTitle}</h3>
+            <p>{blockText}</p>
+          </article>
+        ))}
+      </section>
+    </section>
+  );
+}
+
+function ModuleHero({ kicker, title, text, accent }: { kicker: string; title: string; text: string; accent: string }) {
+  return (
+    <section className="module-hero neu-lg">
+      <div>
+        <span className="section-kicker">{kicker}</span>
+        <h1>{title}</h1>
+        <p>{text}</p>
+      </div>
+      <div className="hero-monogram">{accent}</div>
     </section>
   );
 }
