@@ -98,6 +98,16 @@ type ClinicAccess = {
   clinicName: string;
 };
 
+type TeamMember = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  invitedAt: string;
+  invitedBy: string;
+};
+
 type AppDashboard = {
   metrics: {
     totalClients: number;
@@ -1746,51 +1756,103 @@ function IntegrationModal({ integration, onClose }: { integration: { name: strin
 
 function TeamPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
-  const team = [
-    { id: 'owner', name: 'Negis Owner', email: 'negissupport@negis.online', role: 'Owner', access: 'полный доступ' },
-    { id: 'support', name: 'Support Manager', email: 'support@negis.online', role: 'Support', access: 'клиники и обращения' },
-    { id: 'finance', name: 'Finance Manager', email: 'finance@negis.online', role: 'Finance', access: 'биллинг и счета' }
-  ];
+  const queryClient = useQueryClient();
+  const team = useQuery({
+    queryKey: ['team'],
+    queryFn: () => api<{ members: TeamMember[] }>('/api/team')
+  });
+  const invite = useMutation({
+    mutationFn: (payload: { email: string; role: string; name?: string }) =>
+      api<{ member: TeamMember }>('/api/team/invite', { method: 'POST', body: JSON.stringify(payload) }),
+    onSuccess: () => {
+      toast.success('Приглашение отправлено на почту');
+      queryClient.invalidateQueries({ queryKey: ['team'] });
+      setInviteOpen(false);
+    },
+    onError: (error) => toast.error(error.message)
+  });
+  const members = team.data?.members || [];
+  const ownerCount = members.filter((member) => member.role === 'Owner').length;
 
   return (
     <section className="page-stack">
-      <ModuleHero kicker="ACCESS CONTROL" title="Команда Negis" text="Это доступы вашей команды, а не сотрудники клиник. Сотрудники бизнеса находятся внутри карточки клиники." accent="T" />
+      <ModuleHero
+        kicker="ACCESS CONTROL"
+        title="Команда Negis"
+        text="Это реальные доступы вашей команды, а не демо-сотрудники. Приглашение сохраняется в Supabase и отправляется с negissupport@negis.online."
+        accent="T"
+      />
       <div className="metrics-grid four">
-        <MetricCard icon={<Users />} label="Члены команды" value={team.length} hint="внутренний доступ" />
-        <MetricCard icon={<ShieldCheck />} label="Owner" value="1" hint="главный доступ" />
+        <MetricCard icon={<Users />} label="Члены команды" value={members.length} hint="реальные данные" />
+        <MetricCard icon={<ShieldCheck />} label="Owner" value={ownerCount || 1} hint="главный доступ" />
         <MetricCard icon={<Lock />} label="Модель прав" value="RBAC" hint="роли и ограничения" />
-        <MetricCard icon={<Activity />} label="Аудит" value="ON" hint="опасные действия" />
+        <MetricCard icon={<Activity />} label="Аудит" value="ON" hint="приглашения логируются" />
       </div>
       <section className="neu panel">
         <PanelHeader title="Внутренняя команда" action="права доступа" />
-        <div className="team-grid">
-          {team.map((member) => (
-            <article className="team-card" key={member.id}>
-              <span>{member.name.slice(0, 2).toUpperCase()}</span>
-              <div><strong>{member.name}</strong><p>{member.email}</p><small>{member.role} · {member.access}</small></div>
-              <button className="mini-button" onClick={() => toast.info('Редактор прав будет подключен к Admin API')}>Права</button>
-            </article>
-          ))}
-        </div>
+        {team.isLoading ? (
+          <div className="empty-state"><h3>Загружаем команду</h3><p>Получаем реальные данные из Supabase.</p></div>
+        ) : team.isError ? (
+          <div className="empty-state"><h3>Команда не загружена</h3><p>{team.error instanceof Error ? team.error.message : 'Проверьте Supabase таблицу super_team_members.'}</p></div>
+        ) : (
+          <div className="team-grid">
+            {members.map((member) => (
+              <article className="team-card" key={member.id}>
+                <span>{member.name.slice(0, 2).toUpperCase()}</span>
+                <div>
+                  <strong>{member.name}</strong>
+                  <p>{member.email}</p>
+                  <small>{member.role} · {member.status} · {formatDate(member.invitedAt)}</small>
+                </div>
+                <button className="mini-button" onClick={() => toast.info('Редактор прав будет подключен следующим backend endpoint')}>Права</button>
+              </article>
+            ))}
+          </div>
+        )}
         <button className="neu-btn-primary" onClick={() => setInviteOpen(true)}>Пригласить сотрудника Negis</button>
       </section>
-      {inviteOpen && <TeamInviteModal onClose={() => setInviteOpen(false)} />}
+      {inviteOpen && (
+        <TeamInviteModal
+          isSending={invite.isPending}
+          onClose={() => setInviteOpen(false)}
+          onInvite={(payload) => invite.mutate(payload)}
+        />
+      )}
     </section>
   );
 }
 
-function TeamInviteModal({ onClose }: { onClose: () => void }) {
+function TeamInviteModal({
+  isSending,
+  onClose,
+  onInvite
+}: {
+  isSending: boolean;
+  onClose: () => void;
+  onInvite: (payload: { email: string; role: string; name?: string }) => void;
+}) {
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const [role, setRole] = useState('Support');
+
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal-card neu-lg">
-        <div className="panel-header"><h3>Пригласить сотрудника</h3><button className="icon-button neu-sm" onClick={onClose}>×</button></div>
+        <div className="panel-header">
+          <h3>Пригласить сотрудника</h3>
+          <button className="icon-button neu-sm" onClick={onClose} type="button">×</button>
+        </div>
         <div className="modal-form">
-          <label><span>Email</span><input className="neu-input" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="manager@negis.online" /></label>
+          <label><span>Имя</span><input className="neu-input" value={name} onChange={(event) => setName(event.target.value)} placeholder="Имя сотрудника" /></label>
+          <label><span>Email</span><input className="neu-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="manager@negis.online" /></label>
           <label><span>Роль</span><select value={role} onChange={(event) => setRole(event.target.value)}><option>Admin</option><option>Support</option><option>Finance</option><option>Developer</option><option>Read-only</option></select></label>
         </div>
-        <div className="modal-actions"><button className="neu-btn" onClick={onClose}>Отмена</button><button className="neu-btn-primary" onClick={() => { toast.success('Приглашение подготовлено'); onClose(); }}>Отправить приглашение</button></div>
+        <div className="modal-actions">
+          <button className="neu-btn" onClick={onClose} type="button">Отмена</button>
+          <button className="neu-btn-primary" disabled={isSending || !email.includes('@')} onClick={() => onInvite({ email, role, name })} type="button">
+            {isSending ? 'Отправляем' : 'Отправить приглашение'}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
+import nodemailer from 'nodemailer';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 dotenv.config();
@@ -16,6 +17,7 @@ const SESSION_TTL_SECONDS = 60 * 60;
 const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-only-change-me';
 const CRM_APP_URL = 'https://crm.negis.online/';
 const MAIN_NEGIS_APP_URL = normalizeCrmUrl(process.env.MAIN_NEGIS_APP_URL || CRM_APP_URL);
+const TEAM_INVITE_FROM_EMAIL = process.env.TEAM_INVITE_FROM_EMAIL || 'negissupport@negis.online';
 
 function normalizeCrmUrl(rawUrl: string) {
   const url = new URL(rawUrl || CRM_APP_URL);
@@ -51,6 +53,16 @@ type Clinic = {
   revenue: number;
 };
 
+type TeamMember = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  invitedAt: string;
+  invitedBy: string;
+};
+
 type Plan = {
   name: string;
   price: number;
@@ -59,6 +71,20 @@ type Plan = {
 
 const now = new Date();
 const iso = (offsetDays = 0) => new Date(now.getTime() + offsetDays * 86400000).toISOString();
+
+const TEAM_TABLE_SQL = `
+create table if not exists public.super_team_members (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  name text,
+  role text not null,
+  status text not null default 'invited',
+  invited_by text,
+  invited_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+`;
 
 const sourceStats: Array<{ name: string; value: number }> = [];
 
@@ -282,6 +308,94 @@ async function writeSuperLog(
       ip_address: ipAddress || null
     })
     .then(() => undefined, () => undefined);
+}
+
+function mapTeamMember(row: Record<string, any>): TeamMember {
+  const email = String(row.email || '').trim();
+  return {
+    id: String(row.id || email),
+    name: String(row.name || email.split('@')[0] || 'Team member'),
+    email,
+    role: String(row.role || 'Support'),
+    status: String(row.status || 'invited'),
+    invitedAt: String(row.invited_at || row.created_at || new Date().toISOString()),
+    invitedBy: String(row.invited_by || '')
+  };
+}
+
+function ownerTeamMember(): TeamMember {
+  const email = process.env.SUPER_ADMIN_EMAIL || TEAM_INVITE_FROM_EMAIL;
+  return {
+    id: 'owner',
+    name: 'Negis Owner',
+    email,
+    role: 'Owner',
+    status: 'active',
+    invitedAt: new Date().toISOString(),
+    invitedBy: 'system'
+  };
+}
+
+async function loadTeamMembers(client: SupabaseClient | null): Promise<TeamMember[]> {
+  const owner = ownerTeamMember();
+  if (!client) return [owner];
+
+  const { data, error } = await client.from('super_team_members').select('*').order('created_at', { ascending: true });
+  if (error) {
+    throw new Error(`Не удалось загрузить super_team_members: ${error.message}. Создайте таблицу SQL: ${TEAM_TABLE_SQL}`);
+  }
+
+  const members = (data || []).map((row) => mapTeamMember(row as Record<string, any>));
+  const hasOwner = members.some((member) => member.email.toLowerCase() === owner.email.toLowerCase());
+  return hasOwner ? members : [owner, ...members];
+}
+
+function getSmtpTransport() {
+  const host = process.env.SMTP_HOST || 'smtp.zoho.com';
+  const port = Number(process.env.SMTP_PORT || 465);
+  const user = process.env.SMTP_USER || TEAM_INVITE_FROM_EMAIL;
+  const pass = process.env.SMTP_PASS;
+  if (!user || !pass) {
+    throw new Error('SMTP не настроен. Добавьте в Vercel Secrets: SMTP_HOST=smtp.zoho.com, SMTP_PORT=465, SMTP_USER=negissupport@negis.online, SMTP_PASS=пароль_приложения_Zoho.');
+  }
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass }
+  });
+}
+
+async function sendTeamInviteEmail(email: string, role: string, invitedBy: string, origin: string) {
+  const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || TEAM_INVITE_FROM_EMAIL;
+  const fromName = process.env.SMTP_FROM_NAME || 'Negis Control';
+  const acceptUrl = `${origin.replace(/\/$/, '')}/`;
+  const transporter = getSmtpTransport();
+  await transporter.sendMail({
+    from: `"${fromName}" <${fromEmail}>`,
+    to: email,
+    replyTo: TEAM_INVITE_FROM_EMAIL,
+    subject: 'Приглашение в команду Negis Control',
+    text: [
+      'Здравствуйте!',
+      '',
+      `${invitedBy} пригласил вас в команду Negis Control с ролью: ${role}.`,
+      `Откройте админку: ${acceptUrl}`,
+      '',
+      'Если вы не ожидали это письмо, просто проигнорируйте его.',
+      '',
+      'Negis Control'
+    ].join('\n'),
+    html: `
+      <div style="font-family:Inter,Arial,sans-serif;line-height:1.6;color:#0f172a">
+        <h2>Приглашение в Negis Control</h2>
+        <p><b>${invitedBy}</b> пригласил вас в команду Negis Control.</p>
+        <p>Роль: <b>${role}</b></p>
+        <p><a href="${acceptUrl}" style="display:inline-block;background:#0D9488;color:#fff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:700">Открыть админку</a></p>
+        <p style="color:#64748b">Если вы не ожидали это письмо, просто проигнорируйте его.</p>
+      </div>
+    `
+  });
 }
 
 async function updateClinicStatus(client: SupabaseClient, clinicId: string, status: string) {
@@ -824,6 +938,72 @@ app.get('/api/logs', requireAuth, async (_req, res) => {
       ip: String(log.ip_address || '')
     }))
   });
+});
+
+app.get('/api/team', requireAuth, async (_req, res) => {
+  try {
+    const members = await loadTeamMembers(getSupabase());
+    res.json({ members });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Не удалось загрузить команду' });
+  }
+});
+
+app.post('/api/team/invite', requireAuth, async (req, res) => {
+  const client = getSupabase();
+  if (!client) {
+    res.status(500).json({ error: 'Supabase не настроен. Команду нельзя сохранять без базы.' });
+    return;
+  }
+
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const role = String(req.body?.role || '').trim();
+  const name = String(req.body?.name || email.split('@')[0] || 'Team member').trim();
+  const allowedRoles = new Set(['Owner', 'Admin', 'Support', 'Finance', 'Developer', 'Read-only']);
+
+  if (!email || !email.includes('@')) {
+    res.status(400).json({ error: 'Укажите корректный email' });
+    return;
+  }
+
+  if (!allowedRoles.has(role)) {
+    res.status(400).json({ error: 'Некорректная роль команды' });
+    return;
+  }
+
+  const invitedBy = res.locals.session?.email || process.env.SUPER_ADMIN_EMAIL || TEAM_INVITE_FROM_EMAIL;
+  const payload = {
+    email,
+    name,
+    role,
+    status: 'invited',
+    invited_by: invitedBy,
+    invited_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  const { data, error } = await client
+    .from('super_team_members')
+    .upsert(payload, { onConflict: 'email' })
+    .select('*')
+    .single();
+
+  if (error) {
+    res.status(500).json({ error: `Не удалось сохранить участника команды: ${error.message}. Создайте таблицу SQL: ${TEAM_TABLE_SQL}` });
+    return;
+  }
+
+  try {
+    const protocol = String(req.headers['x-forwarded-proto'] || req.protocol).split(',')[0];
+    const origin = `${protocol}://${req.get('host')}`;
+    await sendTeamInviteEmail(email, role, invitedBy, origin);
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Участник сохранен, но письмо не отправлено' });
+    return;
+  }
+
+  await writeSuperLog(client, 'team_member_invited', { email, role, invitedBy }, null, null, getRequestIp(req));
+  res.json({ member: mapTeamMember(data as Record<string, any>) });
 });
 
 app.get('/api/admin/app/dashboard', requireAuth, (_req, res) => {
