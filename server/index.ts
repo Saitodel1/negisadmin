@@ -72,20 +72,6 @@ type Plan = {
 const now = new Date();
 const iso = (offsetDays = 0) => new Date(now.getTime() + offsetDays * 86400000).toISOString();
 
-const TEAM_TABLE_SQL = `
-create table if not exists public.super_team_members (
-  id uuid primary key default gen_random_uuid(),
-  email text not null unique,
-  name text,
-  role text not null,
-  status text not null default 'invited',
-  invited_by text,
-  invited_at timestamptz not null default now(),
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-`;
-
 const sourceStats: Array<{ name: string; value: number }> = [];
 
 const defaultPlans: Plan[] = [
@@ -342,7 +328,7 @@ async function loadTeamMembers(client: SupabaseClient | null): Promise<TeamMembe
 
   const { data, error } = await client.from('super_team_members').select('*').order('created_at', { ascending: true });
   if (error) {
-    throw new Error(`Не удалось загрузить super_team_members: ${error.message}. Создайте таблицу SQL: ${TEAM_TABLE_SQL}`);
+    throw new Error('Таблица команды еще не создана в Supabase. Выполните SQL из файла supabase/2026-06-14_create_super_team_members.sql.');
   }
 
   const members = (data || []).map((row) => mapTeamMember(row as Record<string, any>));
@@ -989,7 +975,7 @@ app.post('/api/team/invite', requireAuth, async (req, res) => {
     .single();
 
   if (error) {
-    res.status(500).json({ error: `Не удалось сохранить участника команды: ${error.message}. Создайте таблицу SQL: ${TEAM_TABLE_SQL}` });
+    res.status(500).json({ error: 'Не удалось сохранить участника команды: таблица super_team_members еще не создана в Supabase. Выполните SQL из файла supabase/2026-06-14_create_super_team_members.sql.' });
     return;
   }
 
