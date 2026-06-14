@@ -14,7 +14,16 @@ const PORT = Number(process.env.PORT || 8787);
 const SESSION_COOKIE = 'negis_control_session';
 const SESSION_TTL_SECONDS = 60 * 60;
 const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-only-change-me';
-const MAIN_NEGIS_APP_URL = process.env.MAIN_NEGIS_APP_URL || 'https://crm.negis.online/';
+const CRM_APP_URL = 'https://crm.negis.online/';
+const MAIN_NEGIS_APP_URL = normalizeCrmUrl(process.env.MAIN_NEGIS_APP_URL || CRM_APP_URL);
+
+function normalizeCrmUrl(rawUrl: string) {
+  const url = new URL(rawUrl || CRM_APP_URL);
+  if (url.hostname === 'negis.online' || url.hostname === 'www.negis.online') {
+    url.hostname = 'crm.negis.online';
+  }
+  return url.toString();
+}
 
 const app = express();
 
