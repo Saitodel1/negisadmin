@@ -2726,6 +2726,63 @@ body {
   margin-bottom: 18px;
 }
 
+.team-error {
+  color: #dc2626 !important;
+  display: block;
+  margin-top: 4px;
+  max-width: 720px;
+}
+
+.permissions-modal {
+  max-width: 760px;
+}
+
+.permissions-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  max-height: 48vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.permission-row {
+  align-items: center;
+  background: rgba(241, 245, 249, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 18px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(130px, 1fr) auto;
+  padding: 12px 14px;
+}
+
+.permission-row strong {
+  color: var(--ink);
+}
+
+.permission-options {
+  display: flex;
+  gap: 8px;
+}
+
+.permission-options button {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 800;
+  padding: 8px 11px;
+}
+
+.permission-options button.active {
+  background: linear-gradient(135deg, #0d9488, #1a56db);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 12px 22px rgba(26, 86, 219, 0.18);
+}
+
 .settings-form {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   margin-bottom: 18px;

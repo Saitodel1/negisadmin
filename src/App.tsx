@@ -104,8 +104,12 @@ type TeamMember = {
   email: string;
   role: string;
   status: string;
+  permissions: Record<string, 'none' | 'view' | 'edit'>;
   invitedAt: string;
   invitedBy: string;
+  emailStatus: string;
+  emailError: string;
+  emailSentAt: string;
 };
 
 type AppDashboard = {
@@ -248,6 +252,21 @@ const navItems = [
 ];
 
 const colors = ['#1A56DB', '#10B981', '#F59E0B', '#EF4444', '#64748B', '#8B5CF6'];
+
+const teamPermissionSections = [
+  ['dashboard', 'Главная'],
+  ['clinics', 'Клиники'],
+  ['billing', 'Биллинг'],
+  ['analytics', 'Аналитика'],
+  ['monitoring', 'Мониторинг'],
+  ['support', 'Поддержка'],
+  ['integrations', 'Интеграции'],
+  ['app', 'Negis App'],
+  ['team', 'Команда'],
+  ['settings', 'Настройки']
+] as const;
+
+const teamRoles = ['Admin', 'Support', 'Finance', 'Developer', 'Read-only'];
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -1756,6 +1775,7 @@ function IntegrationModal({ integration, onClose }: { integration: { name: strin
 
 function TeamPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [permissionsMember, setPermissionsMember] = useState<TeamMember | null>(null);
   const queryClient = useQueryClient();
   const team = useQuery({
     queryKey: ['team'],
@@ -1771,6 +1791,19 @@ function TeamPage() {
     },
     onError: (error) => toast.error(error.message)
   });
+  const updatePermissions = useMutation({
+    mutationFn: (payload: { id: string; role: string; permissions: TeamMember['permissions'] }) =>
+      api<{ member: TeamMember }>(`/api/team/${payload.id}/permissions`, {
+        method: 'PATCH',
+        body: JSON.stringify({ role: payload.role, permissions: payload.permissions })
+      }),
+    onSuccess: () => {
+      toast.success('Права сотрудника сохранены');
+      queryClient.invalidateQueries({ queryKey: ['team'] });
+      setPermissionsMember(null);
+    },
+    onError: (error) => toast.error(error.message)
+  });
   const members = team.data?.members || [];
   const ownerCount = members.filter((member) => member.role === 'Owner').length;
 
@@ -1779,14 +1812,14 @@ function TeamPage() {
       <ModuleHero
         kicker="ACCESS CONTROL"
         title="Команда Negis"
-        text="Это реальные доступы вашей команды, а не демо-сотрудники. Приглашение сохраняется в Supabase и отправляется с negissupport@negis.online."
+        text="Это реальные доступы вашей команды. Приглашение сохраняется в Supabase, письмо отправляется с negissupport@negis.online, а права задаются по разделам."
         accent="T"
       />
       <div className="metrics-grid four">
         <MetricCard icon={<Users />} label="Члены команды" value={members.length} hint="реальные данные" />
         <MetricCard icon={<ShieldCheck />} label="Owner" value={ownerCount || 1} hint="главный доступ" />
-        <MetricCard icon={<Lock />} label="Модель прав" value="RBAC" hint="роли и ограничения" />
-        <MetricCard icon={<Activity />} label="Аудит" value="ON" hint="приглашения логируются" />
+        <MetricCard icon={<Lock />} label="Модель прав" value="RBAC" hint="просмотр и редактирование" />
+        <MetricCard icon={<Activity />} label="Аудит" value="ON" hint="приглашения и права" />
       </div>
       <section className="neu panel">
         <PanelHeader title="Внутренняя команда" action="права доступа" />
@@ -1802,9 +1835,10 @@ function TeamPage() {
                 <div>
                   <strong>{member.name}</strong>
                   <p>{member.email}</p>
-                  <small>{member.role} · {member.status} · {formatDate(member.invitedAt)}</small>
+                  <small>{member.role} · {member.status} · письмо: {emailStatusLabel(member)}</small>
+                  {member.emailError ? <small className="team-error">{member.emailError}</small> : null}
                 </div>
-                <button className="mini-button" onClick={() => toast.info('Редактор прав будет подключен следующим backend endpoint')}>Права</button>
+                <button className="mini-button" disabled={member.id === 'owner'} onClick={() => setPermissionsMember(member)}>Права</button>
               </article>
             ))}
           </div>
@@ -1818,8 +1852,24 @@ function TeamPage() {
           onInvite={(payload) => invite.mutate(payload)}
         />
       )}
+      {permissionsMember && (
+        <TeamPermissionsModal
+          member={permissionsMember}
+          isSaving={updatePermissions.isPending}
+          onClose={() => setPermissionsMember(null)}
+          onSave={(payload) => updatePermissions.mutate(payload)}
+        />
+      )}
     </section>
   );
+}
+
+function emailStatusLabel(member: TeamMember) {
+  if (member.emailStatus === 'sent') return 'отправлено';
+  if (member.emailStatus === 'failed') return 'ошибка SMTP';
+  if (member.emailStatus === 'pending') return 'отправляется';
+  if (member.emailStatus === 'owner') return 'owner';
+  return 'не отправлено';
 }
 
 function TeamInviteModal({
@@ -1842,15 +1892,65 @@ function TeamInviteModal({
           <h3>Пригласить сотрудника</h3>
           <button className="icon-button neu-sm" onClick={onClose} type="button">×</button>
         </div>
+        <p className="modal-copy">На почту придет письмо: «Добро пожаловать в Negis System» с указанной должностью.</p>
         <div className="modal-form">
           <label><span>Имя</span><input className="neu-input" value={name} onChange={(event) => setName(event.target.value)} placeholder="Имя сотрудника" /></label>
           <label><span>Email</span><input className="neu-input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="manager@negis.online" /></label>
-          <label><span>Роль</span><select value={role} onChange={(event) => setRole(event.target.value)}><option>Admin</option><option>Support</option><option>Finance</option><option>Developer</option><option>Read-only</option></select></label>
+          <label><span>Роль / должность</span><select value={role} onChange={(event) => setRole(event.target.value)}>{teamRoles.map((item) => <option key={item}>{item}</option>)}</select></label>
         </div>
         <div className="modal-actions">
           <button className="neu-btn" onClick={onClose} type="button">Отмена</button>
           <button className="neu-btn-primary" disabled={isSending || !email.includes('@')} onClick={() => onInvite({ email, role, name })} type="button">
             {isSending ? 'Отправляем' : 'Отправить приглашение'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TeamPermissionsModal({
+  member,
+  isSaving,
+  onClose,
+  onSave
+}: {
+  member: TeamMember;
+  isSaving: boolean;
+  onClose: () => void;
+  onSave: (payload: { id: string; role: string; permissions: TeamMember['permissions'] }) => void;
+}) {
+  const [role, setRole] = useState(member.role);
+  const [permissions, setPermissions] = useState<TeamMember['permissions']>(member.permissions || {});
+  const setLevel = (section: string, level: 'none' | 'view' | 'edit') => setPermissions((current) => ({ ...current, [section]: level }));
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-card neu-lg permissions-modal">
+        <div className="panel-header">
+          <h3>Права сотрудника</h3>
+          <button className="icon-button neu-sm" onClick={onClose} type="button">×</button>
+        </div>
+        <p className="modal-copy">{member.name} · {member.email}</p>
+        <div className="modal-form">
+          <label><span>Роль / должность</span><select value={role} onChange={(event) => setRole(event.target.value)}>{teamRoles.map((item) => <option key={item}>{item}</option>)}</select></label>
+        </div>
+        <div className="permissions-grid">
+          {teamPermissionSections.map(([section, label]) => (
+            <div className="permission-row" key={section}>
+              <strong>{label}</strong>
+              <div className="permission-options">
+                <button className={permissions[section] === 'none' ? 'active' : ''} onClick={() => setLevel(section, 'none')} type="button">Нет</button>
+                <button className={permissions[section] === 'view' ? 'active' : ''} onClick={() => setLevel(section, 'view')} type="button">Просмотр</button>
+                <button className={permissions[section] === 'edit' ? 'active' : ''} onClick={() => setLevel(section, 'edit')} type="button">Редактирование</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="modal-actions">
+          <button className="neu-btn" onClick={onClose} type="button">Отмена</button>
+          <button className="neu-btn-primary" disabled={isSaving} onClick={() => onSave({ id: member.id, role, permissions })} type="button">
+            {isSaving ? 'Сохраняем' : 'Сохранить права'}
           </button>
         </div>
       </div>

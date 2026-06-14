@@ -59,9 +59,16 @@ type TeamMember = {
   email: string;
   role: string;
   status: string;
+  permissions: TeamPermissions;
   invitedAt: string;
   invitedBy: string;
+  emailStatus: string;
+  emailError: string;
+  emailSentAt: string;
 };
+
+type PermissionLevel = 'none' | 'view' | 'edit';
+type TeamPermissions = Record<string, PermissionLevel>;
 
 type Plan = {
   name: string;
@@ -79,6 +86,50 @@ const defaultPlans: Plan[] = [
   { name: 'Pro', price: 59000, limits: '10 агентов, воронка, экспорт' },
   { name: 'Max', price: 99000, limits: 'Безлимит, realtime, приоритет' }
 ];
+
+const TEAM_PERMISSION_SECTIONS = ['dashboard', 'clinics', 'billing', 'analytics', 'monitoring', 'support', 'integrations', 'app', 'team', 'settings'];
+
+const defaultRolePermissions: Record<string, TeamPermissions> = {
+  Owner: Object.fromEntries(TEAM_PERMISSION_SECTIONS.map((section) => [section, 'edit'])) as TeamPermissions,
+  Admin: Object.fromEntries(TEAM_PERMISSION_SECTIONS.map((section) => [section, section === 'settings' ? 'view' : 'edit'])) as TeamPermissions,
+  Support: {
+    dashboard: 'view',
+    clinics: 'view',
+    billing: 'none',
+    analytics: 'view',
+    monitoring: 'view',
+    support: 'edit',
+    integrations: 'none',
+    app: 'view',
+    team: 'none',
+    settings: 'none'
+  },
+  Finance: {
+    dashboard: 'view',
+    clinics: 'view',
+    billing: 'edit',
+    analytics: 'view',
+    monitoring: 'none',
+    support: 'none',
+    integrations: 'none',
+    app: 'none',
+    team: 'none',
+    settings: 'none'
+  },
+  Developer: {
+    dashboard: 'view',
+    clinics: 'view',
+    billing: 'none',
+    analytics: 'view',
+    monitoring: 'edit',
+    support: 'view',
+    integrations: 'edit',
+    app: 'edit',
+    team: 'none',
+    settings: 'view'
+  },
+  'Read-only': Object.fromEntries(TEAM_PERMISSION_SECTIONS.map((section) => [section, section === 'team' || section === 'settings' ? 'none' : 'view'])) as TeamPermissions
+};
 
 const dataDir = process.env.VERCEL ? path.join('/tmp', 'negis-control') : path.join(process.cwd(), 'server', '.data');
 const plansFile = path.join(dataDir, 'plans.json');
@@ -298,14 +349,19 @@ async function writeSuperLog(
 
 function mapTeamMember(row: Record<string, any>): TeamMember {
   const email = String(row.email || '').trim();
+  const role = String(row.role || 'Support');
   return {
     id: String(row.id || email),
     name: String(row.name || email.split('@')[0] || 'Team member'),
     email,
-    role: String(row.role || 'Support'),
+    role,
     status: String(row.status || 'invited'),
+    permissions: normalizePermissions(row.permissions, role),
     invitedAt: String(row.invited_at || row.created_at || new Date().toISOString()),
-    invitedBy: String(row.invited_by || '')
+    invitedBy: String(row.invited_by || ''),
+    emailStatus: String(row.email_status || 'not_sent'),
+    emailError: String(row.email_error || ''),
+    emailSentAt: String(row.email_sent_at || '')
   };
 }
 
@@ -317,9 +373,23 @@ function ownerTeamMember(): TeamMember {
     email,
     role: 'Owner',
     status: 'active',
+    permissions: normalizePermissions(null, 'Owner'),
     invitedAt: new Date().toISOString(),
-    invitedBy: 'system'
+    invitedBy: 'system',
+    emailStatus: 'owner',
+    emailError: '',
+    emailSentAt: ''
   };
+}
+
+function normalizePermissions(input: unknown, role = 'Support'): TeamPermissions {
+  const fallback = defaultRolePermissions[role] || defaultRolePermissions.Support;
+  const source = input && typeof input === 'object' ? input as Record<string, unknown> : {};
+  return TEAM_PERMISSION_SECTIONS.reduce((result, section) => {
+    const value = source[section];
+    result[section] = value === 'none' || value === 'view' || value === 'edit' ? value : fallback[section] || 'none';
+    return result;
+  }, {} as TeamPermissions);
 }
 
 async function loadTeamMembers(client: SupabaseClient | null): Promise<TeamMember[]> {
@@ -340,7 +410,7 @@ function getSmtpTransport() {
   const host = process.env.SMTP_HOST || 'smtp.zoho.com';
   const port = Number(process.env.SMTP_PORT || 465);
   const user = process.env.SMTP_USER || TEAM_INVITE_FROM_EMAIL;
-  const pass = process.env.SMTP_PASS;
+  const pass = process.env.SMTP_PASS?.replace(/\s+/g, '');
   if (!user || !pass) {
     throw new Error('SMTP не настроен. Добавьте в Vercel Secrets: SMTP_HOST=smtp.zoho.com, SMTP_PORT=465, SMTP_USER=negissupport@negis.online, SMTP_PASS=пароль_приложения_Zoho.');
   }
@@ -361,23 +431,25 @@ async function sendTeamInviteEmail(email: string, role: string, invitedBy: strin
     from: `"${fromName}" <${fromEmail}>`,
     to: email,
     replyTo: TEAM_INVITE_FROM_EMAIL,
-    subject: 'Приглашение в команду Negis Control',
+    subject: 'Добро пожаловать в Negis System',
     text: [
-      'Здравствуйте!',
+      'Добро пожаловать в Negis System!',
       '',
-      `${invitedBy} пригласил вас в команду Negis Control с ролью: ${role}.`,
-      `Откройте админку: ${acceptUrl}`,
+      `Вас пригласили в команду Negis System на должность: ${role}.`,
+      `Приглашение отправил: ${invitedBy}.`,
+      `Откройте админ-панель: ${acceptUrl}`,
       '',
       'Если вы не ожидали это письмо, просто проигнорируйте его.',
       '',
-      'Negis Control'
+      'Negis System'
     ].join('\n'),
     html: `
       <div style="font-family:Inter,Arial,sans-serif;line-height:1.6;color:#0f172a">
-        <h2>Приглашение в Negis Control</h2>
-        <p><b>${invitedBy}</b> пригласил вас в команду Negis Control.</p>
-        <p>Роль: <b>${role}</b></p>
-        <p><a href="${acceptUrl}" style="display:inline-block;background:#0D9488;color:#fff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:700">Открыть админку</a></p>
+        <h2>Добро пожаловать в Negis System</h2>
+        <p>Вас пригласили в команду Negis System.</p>
+        <p>Должность: <b>${role}</b></p>
+        <p>Приглашение отправил: <b>${invitedBy}</b></p>
+        <p><a href="${acceptUrl}" style="display:inline-block;background:#0D9488;color:#fff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:700">Открыть админ-панель</a></p>
         <p style="color:#64748b">Если вы не ожидали это письмо, просто проигнорируйте его.</p>
       </div>
     `
@@ -963,8 +1035,12 @@ app.post('/api/team/invite', requireAuth, async (req, res) => {
     name,
     role,
     status: 'invited',
+    permissions: normalizePermissions(req.body?.permissions, role),
     invited_by: invitedBy,
     invited_at: new Date().toISOString(),
+    email_status: 'pending',
+    email_error: null,
+    email_sent_at: null,
     updated_at: new Date().toISOString()
   };
 
@@ -975,7 +1051,7 @@ app.post('/api/team/invite', requireAuth, async (req, res) => {
     .single();
 
   if (error) {
-    res.status(500).json({ error: 'Не удалось сохранить участника команды: таблица super_team_members еще не создана в Supabase. Выполните SQL из файла supabase/2026-06-14_create_super_team_members.sql.' });
+    res.status(500).json({ error: 'Не удалось сохранить участника команды. Проверьте, что в Supabase выполнен SQL из файла supabase/2026-06-14_create_super_team_members.sql.' });
     return;
   }
 
@@ -984,11 +1060,55 @@ app.post('/api/team/invite', requireAuth, async (req, res) => {
     const origin = `${protocol}://${req.get('host')}`;
     await sendTeamInviteEmail(email, role, invitedBy, origin);
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Участник сохранен, но письмо не отправлено' });
+    const message = error instanceof Error ? error.message : 'Участник сохранен, но письмо не отправлено';
+    await client.from('super_team_members').update({
+      email_status: 'failed',
+      email_error: message,
+      updated_at: new Date().toISOString()
+    }).eq('email', email).then(() => undefined, () => undefined);
+    res.status(500).json({ error: `Участник сохранен, но письмо не отправлено: ${message}` });
     return;
   }
 
+  const emailSentAt = new Date().toISOString();
+  await client.from('super_team_members').update({
+    email_status: 'sent',
+    email_error: null,
+    email_sent_at: emailSentAt,
+    updated_at: new Date().toISOString()
+  }).eq('email', email).then(() => undefined, () => undefined);
+
   await writeSuperLog(client, 'team_member_invited', { email, role, invitedBy }, null, null, getRequestIp(req));
+  res.json({ member: mapTeamMember({ ...(data as Record<string, any>), email_status: 'sent', email_error: null, email_sent_at: emailSentAt }) });
+});
+
+app.patch('/api/team/:id/permissions', requireAuth, async (req, res) => {
+  const client = getSupabase();
+  if (!client) {
+    res.status(500).json({ error: 'Supabase не настроен. Права команды нельзя сохранять без базы.' });
+    return;
+  }
+
+  const id = String(req.params.id || '');
+  const role = String(req.body?.role || 'Support');
+  const permissions = normalizePermissions(req.body?.permissions, role);
+  const { data, error } = await client
+    .from('super_team_members')
+    .update({
+      role,
+      permissions,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) {
+    res.status(500).json({ error: `Не удалось сохранить права сотрудника: ${error.message}` });
+    return;
+  }
+
+  await writeSuperLog(client, 'team_member_permissions_updated', { id, role, permissions }, null, id, getRequestIp(req));
   res.json({ member: mapTeamMember(data as Record<string, any>) });
 });
 

@@ -4,6 +4,7 @@ dist-server
 .env
 .env.local
 .env.vercel
+*.env
 *.log
 *.tsbuildinfo
 server/index.js
