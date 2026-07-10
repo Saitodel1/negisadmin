@@ -461,6 +461,14 @@ async function updateClinicStatus(client: SupabaseClient, clinicId: string, stat
   if (error) throw error;
 }
 
+function errorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message?: unknown }).message || fallback);
+  }
+  return fallback;
+}
+
 async function createInvoice(client: SupabaseClient, clinic: Clinic, amount: number, plan: string, issuedBy?: string) {
   const dueAt = iso(7);
   const fullPayload = {
@@ -858,7 +866,15 @@ app.post('/api/clinics/:id/trial', requireAuth, async (req, res) => {
   const trialEndsAt = iso(days);
 
   try {
-    await updateClinicStatus(client, clinic.id, 'trial');
+    const statusUpdate = await client
+      .from('clinics')
+      .update({ status: 'trial', trial_ends_at: trialEndsAt })
+      .eq('id', clinic.id);
+
+    if (statusUpdate.error) {
+      await updateClinicStatus(client, clinic.id, 'trial');
+    }
+
     await client
       .from('subscriptions')
       .insert({
@@ -871,10 +887,11 @@ app.post('/api/clinics/:id/trial', requireAuth, async (req, res) => {
         ends_at: trialEndsAt
       })
       .then(() => undefined, () => undefined);
+
     await writeSuperLog(client, 'clinic_trial_opened', { days, trialEndsAt, openedBy: res.locals.session?.email }, clinic.id, null, getRequestIp(req));
     res.json({ id: clinic.id, status: 'trial', trialEndsAt });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Не удалось открыть пробный период' });
+    res.status(500).json({ error: errorMessage(error, 'Не удалось открыть пробный период') });
   }
 });
 
@@ -894,7 +911,7 @@ app.post('/api/clinics/:id/invoice', requireAuth, async (req, res) => {
   const amount = Number(req.body?.amount);
   const plan = String(req.body?.plan || clinic.plan || 'Basic').trim();
   if (!Number.isFinite(amount) || amount <= 0) {
-    res.status(400).json({ error: 'Укажите сумму счёта больше 0' });
+    res.status(400).json({ error: 'Укажите сумму счета больше 0' });
     return;
   }
 
@@ -903,7 +920,7 @@ app.post('/api/clinics/:id/invoice', requireAuth, async (req, res) => {
     await writeSuperLog(client, 'clinic_invoice_created', { amount: Math.round(amount), plan, issuedBy: res.locals.session?.email }, clinic.id, null, getRequestIp(req));
     res.json({ invoice, clinicId: clinic.id, clinicName: clinic.name });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Не удалось выставить счёт' });
+    res.status(500).json({ error: errorMessage(error, 'Не удалось выставить счет') });
   }
 });
 
@@ -1110,6 +1127,49 @@ app.patch('/api/team/:id/permissions', requireAuth, async (req, res) => {
 
   await writeSuperLog(client, 'team_member_permissions_updated', { id, role, permissions }, null, id, getRequestIp(req));
   res.json({ member: mapTeamMember(data as Record<string, any>) });
+});
+
+app.delete('/api/team/:id', requireAuth, async (req, res) => {
+  const client = getSupabase();
+  if (!client) {
+    res.status(500).json({ error: 'Supabase не настроен. Сотрудника нельзя удалить без базы.' });
+    return;
+  }
+
+  const id = String(req.params.id || '');
+  if (!id || id === 'owner') {
+    res.status(400).json({ error: 'Owner доступ нельзя удалить.' });
+    return;
+  }
+
+  const { data: existing, error: lookupError } = await client
+    .from('super_team_members')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (lookupError || !existing) {
+    res.status(404).json({ error: 'Сотрудник команды не найден.' });
+    return;
+  }
+
+  if (String(existing.role || '').toLowerCase() === 'owner') {
+    res.status(400).json({ error: 'Owner доступ нельзя удалить.' });
+    return;
+  }
+
+  const { error } = await client.from('super_team_members').delete().eq('id', id);
+  if (error) {
+    res.status(500).json({ error: `Не удалось удалить сотрудника: ${error.message}` });
+    return;
+  }
+
+  await writeSuperLog(client, 'team_member_deleted', {
+    id,
+    email: existing.email,
+    role: existing.role
+  }, null, id, getRequestIp(req));
+  res.json({ ok: true });
 });
 
 app.get('/api/admin/app/dashboard', requireAuth, (_req, res) => {

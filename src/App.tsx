@@ -1804,6 +1804,14 @@ function TeamPage() {
     },
     onError: (error) => toast.error(error.message)
   });
+  const deleteMember = useMutation({
+    mutationFn: (member: TeamMember) => api<{ ok: boolean }>(`/api/team/${member.id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      toast.success('Сотрудник удален из команды');
+      queryClient.invalidateQueries({ queryKey: ['team'] });
+    },
+    onError: (error) => toast.error(error.message)
+  });
   const members = team.data?.members || [];
   const ownerCount = members.filter((member) => member.role === 'Owner').length;
 
@@ -1838,7 +1846,21 @@ function TeamPage() {
                   <small>{member.role} · {member.status} · письмо: {emailStatusLabel(member)}</small>
                   {member.emailError ? <small className="team-error">{member.emailError}</small> : null}
                 </div>
-                <button className="mini-button" disabled={member.id === 'owner'} onClick={() => setPermissionsMember(member)}>Права</button>
+                <div className="team-actions">
+                  <button className="mini-button" disabled={member.id === 'owner'} onClick={() => setPermissionsMember(member)} type="button">Права</button>
+                  <button
+                    className="mini-button danger"
+                    disabled={member.id === 'owner' || deleteMember.isPending}
+                    onClick={() => {
+                      if (window.confirm(`Удалить сотрудника ${member.email} из команды Negis?`)) {
+                        deleteMember.mutate(member);
+                      }
+                    }}
+                    type="button"
+                  >
+                    Удалить
+                  </button>
+                </div>
               </article>
             ))}
           </div>
