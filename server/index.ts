@@ -43,6 +43,7 @@ type Clinic = {
   name: string;
   ownerName: string;
   ownerEmail: string;
+  country: string;
   plan: string;
   status: string;
   agentsCount: number;
@@ -76,8 +77,17 @@ type Plan = {
   limits: string;
 };
 
+type CurrencyQuote = {
+  base: 'KGS';
+  target: 'KZT';
+  rate: number;
+  source: string;
+  updatedAt: string;
+};
+
 const now = new Date();
 const iso = (offsetDays = 0) => new Date(now.getTime() + offsetDays * 86400000).toISOString();
+let cachedKgsKztQuote: { quote: CurrencyQuote; expiresAt: number } | null = null;
 
 const sourceStats: Array<{ name: string; value: number }> = [];
 
@@ -324,6 +334,7 @@ async function loadClinics(client: SupabaseClient | null): Promise<Clinic[]> {
         name: pickText(clinic, ['name', 'clinic_name', 'title', 'company_name'], 'Клиника без названия'),
         ownerName: pickText(clinic, ['owner_name', 'ownerName', 'admin_name', 'contact_name'], 'Владелец'),
         ownerEmail: pickText(clinic, ['owner_email', 'ownerEmail', 'email', 'admin_email'], ownerEmail || 'email не указан'),
+        country: pickText(clinic, ['country', 'country_code', 'countryCode', 'billing_country', 'billingCountry'], ''),
         plan: pickText(clinic, ['plan', 'tariff', 'subscription_plan'], 'Basic'),
         status: pickText(clinic, ['status', 'state'], pickText(controlState, ['status'], 'active')),
         agentsCount: agents,
@@ -506,23 +517,91 @@ function errorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-async function createInvoice(client: SupabaseClient, clinic: Clinic, amount: number, plan: string, issuedBy?: string) {
+function isKazakhstanCountry(country?: string) {
+  const value = String(country || '').trim().toLowerCase();
+  return ['kz', 'kaz', 'kazakhstan', 'қазақстан', 'казахстан'].includes(value);
+}
+
+async function getKgsKztQuote(): Promise<CurrencyQuote> {
+  if (cachedKgsKztQuote && cachedKgsKztQuote.expiresAt > Date.now()) return cachedKgsKztQuote.quote;
+
+  const fallbackRate = Number(process.env.KGS_KZT_RATE || process.env.EXCHANGE_RATE_KGS_KZT || 0);
+  try {
+    const response = await fetch('https://open.er-api.com/v6/latest/KGS');
+    const payload = await response.json() as { result?: string; rates?: Record<string, number>; time_last_update_utc?: string; time_next_update_unix?: number };
+    const rate = Number(payload.rates?.KZT);
+    if (response.ok && payload.result === 'success' && Number.isFinite(rate) && rate > 0) {
+      const quote = {
+        base: 'KGS',
+        target: 'KZT',
+        rate,
+        source: 'open.er-api.com',
+        updatedAt: payload.time_last_update_utc || new Date().toISOString()
+      } satisfies CurrencyQuote;
+      cachedKgsKztQuote = {
+        quote,
+        expiresAt: payload.time_next_update_unix ? payload.time_next_update_unix * 1000 : Date.now() + 12 * 60 * 60 * 1000
+      };
+      return quote;
+    }
+  } catch {
+    // Fallback below. External FX APIs fail too; shocking, I know.
+  }
+
+  if (Number.isFinite(fallbackRate) && fallbackRate > 0) {
+    const quote = {
+      base: 'KGS',
+      target: 'KZT',
+      rate: fallbackRate,
+      source: 'env',
+      updatedAt: new Date().toISOString()
+    } satisfies CurrencyQuote;
+    cachedKgsKztQuote = { quote, expiresAt: Date.now() + 60 * 60 * 1000 };
+    return quote;
+  }
+
+  throw new Error('Не удалось получить курс KGS → KZT. Добавьте KGS_KZT_RATE в Vercel или повторите позже.');
+}
+
+async function createInvoice(client: SupabaseClient, clinic: Clinic, amountKgs: number, plan: string, issuedBy?: string) {
   const dueAt = iso(7);
+  const quote = isKazakhstanCountry(clinic.country) ? await getKgsKztQuote() : null;
+  const displayCurrency = quote ? 'KZT' : 'KGS';
+  const displayAmount = quote ? Math.round(amountKgs * quote.rate) : amountKgs;
   const fullPayload = {
     clinic_id: clinic.id,
     clinic_name: clinic.name,
     plan,
-    amount,
+    amount: amountKgs,
+    currency: 'KGS',
+    display_amount: displayAmount,
+    display_currency: displayCurrency,
+    exchange_rate: quote?.rate || 1,
     method: 'invoice',
     status: 'pending',
-    details: { issuedBy, dueAt }
+    details: {
+      issuedBy,
+      dueAt,
+      amountKgs,
+      displayAmount,
+      displayCurrency,
+      exchange: quote
+    }
   };
   const basicPayload = {
     clinic_id: clinic.id,
     plan,
-    amount,
+    amount: amountKgs,
     method: 'invoice',
-    status: 'pending'
+    status: 'pending',
+    details: {
+      issuedBy,
+      dueAt,
+      amountKgs,
+      displayAmount,
+      displayCurrency,
+      exchange: quote
+    }
   };
 
   const first = await client.from('payments').insert(fullPayload).select('*').single();
@@ -954,6 +1033,15 @@ app.post('/api/clinics/:id/invoice', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/api/exchange/kgs-kzt', requireAuth, async (_req, res) => {
+  try {
+    const quote = await getKgsKztQuote();
+    res.json({ quote });
+  } catch (error) {
+    res.status(500).json({ error: errorMessage(error, 'Не удалось получить курс KGS → KZT') });
+  }
+});
+
 app.delete('/api/clinics/:id', requireAuth, async (req, res) => {
   const client = getSupabase();
   if (!client) {
@@ -1001,6 +1089,10 @@ app.get('/api/finances', requireAuth, async (_req, res) => {
       clinic: clinic?.name || String(payment.clinic_name || payment.clinic || '???????'),
       plan: String(payment.plan || payment.tariff || ''),
       amount: Number(payment.amount || payment.price || 0),
+      currency: String(payment.currency || 'KGS'),
+      displayAmount: Number(payment.display_amount || 0),
+      displayCurrency: String(payment.display_currency || payment.currency || 'KGS'),
+      exchangeRate: Number(payment.exchange_rate || 1),
       method: String(payment.method || payment.payment_method || ''),
       createdAt: String(payment.created_at || ''),
       status: String(payment.status || '')

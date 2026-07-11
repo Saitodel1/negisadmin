@@ -47,6 +47,18 @@ create index if not exists payments_status_idx
 create index if not exists payments_created_at_idx
   on public.payments (created_at desc);
 
+alter table public.payments
+  add column if not exists currency text not null default 'KGS';
+
+alter table public.payments
+  add column if not exists display_amount numeric;
+
+alter table public.payments
+  add column if not exists display_currency text;
+
+alter table public.payments
+  add column if not exists exchange_rate numeric;
+
 alter table public.clinics
   add column if not exists trial_ends_at timestamptz;
 

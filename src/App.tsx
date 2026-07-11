@@ -60,6 +60,7 @@ type Clinic = {
   name: string;
   ownerName: string;
   ownerEmail: string;
+  country: string;
   plan: string;
   status: string;
   agentsCount: number;
@@ -96,6 +97,21 @@ type ClinicAccess = {
   temporaryPassword: string;
   clinicId: string;
   clinicName: string;
+};
+
+type PaymentRow = {
+  id: string;
+  clinicId: string;
+  clinic: string;
+  plan: string;
+  amount: number;
+  currency: string;
+  displayAmount: number;
+  displayCurrency: string;
+  exchangeRate: number;
+  method: string;
+  createdAt: string;
+  status: string;
 };
 
 type TeamMember = {
@@ -282,8 +298,26 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-function formatMoney(value = 0) {
-  return `${new Intl.NumberFormat('ru-RU').format(value)} ₸`;
+function currencySymbol(currency = 'KGS') {
+  if (currency === 'KZT') return '₸';
+  if (currency === 'KGS') return 'сом';
+  return currency;
+}
+
+function formatMoney(value = 0, currency = 'KGS') {
+  return `${new Intl.NumberFormat('ru-RU').format(value)} ${currencySymbol(currency)}`;
+}
+
+function formatPaymentAmount(payment: PaymentRow) {
+  const base = formatMoney(payment.amount, payment.currency || 'KGS');
+  if (payment.displayCurrency && payment.displayCurrency !== payment.currency && payment.displayAmount) {
+    return `${base} / ${formatMoney(payment.displayAmount, payment.displayCurrency)}`;
+  }
+  return base;
+}
+
+function isKazakhstanCountry(country?: string) {
+  return ['kz', 'kaz', 'kazakhstan', 'қазақстан', 'казахстан'].includes(String(country || '').trim().toLowerCase());
 }
 
 function formatDate(value?: string) {
@@ -797,11 +831,19 @@ function InvoiceModal({ clinic, onClose }: { clinic: Clinic; onClose: () => void
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState('');
   const [plan, setPlan] = useState(clinic.plan || 'Basic');
+  const shouldShowKzt = isKazakhstanCountry(clinic.country);
+  const exchange = useQuery({
+    queryKey: ['exchange', 'kgs-kzt'],
+    queryFn: () => api<{ quote: { rate: number; updatedAt: string; source: string } }>('/api/exchange/kgs-kzt'),
+    enabled: shouldShowKzt
+  });
+  const amountKgs = Number(amount);
+  const amountKzt = shouldShowKzt && exchange.data?.quote.rate ? Math.round(amountKgs * exchange.data.quote.rate) : 0;
   const create = useMutation({
     mutationFn: () =>
       api(`/api/clinics/${clinic.id}/invoice`, {
         method: 'POST',
-        body: JSON.stringify({ amount: Number(amount), plan })
+        body: JSON.stringify({ amount: amountKgs, plan })
       }),
     onSuccess: () => {
       toast.success('Счет выставлен');
@@ -826,13 +868,20 @@ function InvoiceModal({ clinic, onClose }: { clinic: Clinic; onClose: () => void
             <input className="neu-input" value={plan} onChange={(event) => setPlan(event.target.value)} />
           </label>
           <label>
-            <span>Сумма</span>
+            <span>Сумма, KGS / сом</span>
             <input className="neu-input" type="number" min="1" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="59000" />
           </label>
+          {shouldShowKzt && (
+            <p className="modal-copy">
+              Для Казахстана клиент увидит: {exchange.isLoading ? 'загружаем курс' : formatMoney(amountKzt, 'KZT')}
+              {exchange.data?.quote.rate ? ` · курс 1 сом = ${exchange.data.quote.rate.toFixed(4)} ₸` : ''}
+              {exchange.isError ? ' · курс недоступен' : ''}
+            </p>
+          )}
         </div>
         <div className="modal-actions">
           <button className="neu-btn" onClick={onClose}>Отмена</button>
-          <button className="neu-btn-primary" disabled={create.isPending || !Number(amount)} onClick={() => create.mutate()}>
+          <button className="neu-btn-primary" disabled={create.isPending || !amountKgs || (shouldShowKzt && exchange.isError)} onClick={() => create.mutate()}>
             {create.isPending ? 'Выставляем' : 'Выставить счет'}
           </button>
         </div>
@@ -1268,7 +1317,7 @@ function FinancesPage() {
         forecast: number;
         byMonth: Array<{ month: string; revenue: number }>;
         byPlan: Array<{ name: string; value: number }>;
-        payments: Array<{ id: string; clinicId: string; clinic: string; plan: string; amount: number; method: string; createdAt: string; status: string }>;
+        payments: PaymentRow[];
       }>('/api/finances')
   });
   return (
@@ -1307,7 +1356,7 @@ function FinancesPage() {
         title="История платежей"
         rows={finances.data?.payments || []}
         columns={['Клиника', 'Тариф', 'Сумма', 'Метод', 'Дата', 'Статус']}
-        render={(payment) => [payment.clinic, payment.plan, formatMoney(payment.amount), payment.method, formatDate(payment.createdAt), statusLabel(payment.status)]}
+        render={(payment) => [payment.clinic, payment.plan, formatPaymentAmount(payment), payment.method, formatDate(payment.createdAt), statusLabel(payment.status)]}
         actionLabel="Клиника"
         onOpen={(payment) => navigate(`/clinics/${payment.clinicId}`)}
         embedded
@@ -1533,7 +1582,7 @@ function BillingPage() {
         forecast: number;
         byMonth: Array<{ month: string; revenue: number }>;
         byPlan: Array<{ name: string; value: number }>;
-        payments: Array<{ id: string; clinicId: string; clinic: string; plan: string; amount: number; method: string; createdAt: string; status: string }>;
+        payments: PaymentRow[];
       }>('/api/finances')
   });
   const subscriptionRows = subscriptions.data?.subscriptions || [];
@@ -1595,7 +1644,7 @@ function BillingPage() {
         title="История платежей"
         rows={finances.data?.payments || []}
         columns={['Клиника', 'Тариф', 'Сумма', 'Метод', 'Дата', 'Статус']}
-        render={(payment) => [payment.clinic, payment.plan, formatMoney(payment.amount), payment.method, formatDate(payment.createdAt), statusLabel(payment.status)]}
+        render={(payment) => [payment.clinic, payment.plan, formatPaymentAmount(payment), payment.method, formatDate(payment.createdAt), statusLabel(payment.status)]}
         actionLabel="Клиника"
         onOpen={(payment) => navigate(`/clinics/${payment.clinicId}`)}
         embedded
