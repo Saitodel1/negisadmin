@@ -291,10 +291,24 @@ async function loadClinics(client: SupabaseClient | null): Promise<Clinic[]> {
   if (error || !data) return [];
 
   const authUsersById = await loadAuthUsersById(client).catch(() => new Map<string, { id: string; email: string }>());
+  const clinicIds = data.map((clinic: Record<string, unknown>) => String(clinic.id)).filter(Boolean);
+  const controlStates = new Map<string, Record<string, unknown>>();
+
+  if (clinicIds.length) {
+    const { data: states } = await client
+      .from('clinic_control_states')
+      .select('*')
+      .in('clinic_id', clinicIds);
+
+    (states || []).forEach((state: Record<string, unknown>) => {
+      controlStates.set(String(state.clinic_id), state);
+    });
+  }
 
   return Promise.all(
     data.map(async (clinic: Record<string, unknown>) => {
       const id = String(clinic.id);
+      const controlState = controlStates.get(id) || {};
       const ownerId = String(clinic.owner_id || clinic.ownerId || clinic.user_id || clinic.userId || '');
       const ownerEmail = authUsersById.get(ownerId)?.email;
       const [agents, leads, bookings] = await Promise.all([
@@ -309,11 +323,11 @@ async function loadClinics(client: SupabaseClient | null): Promise<Clinic[]> {
         ownerName: pickText(clinic, ['owner_name', 'ownerName', 'admin_name', 'contact_name'], 'Владелец'),
         ownerEmail: pickText(clinic, ['owner_email', 'ownerEmail', 'email', 'admin_email'], ownerEmail || 'email не указан'),
         plan: pickText(clinic, ['plan', 'tariff', 'subscription_plan'], 'Basic'),
-        status: pickText(clinic, ['status', 'state'], 'active'),
+        status: pickText(clinic, ['status', 'state'], pickText(controlState, ['status'], 'active')),
         agentsCount: agents,
         leadsCount: leads,
         bookingsCount: bookings,
-        lastActivity: String(clinic.updated_at || clinic.created_at || new Date().toISOString()),
+        lastActivity: String(clinic.updated_at || controlState.updated_at || clinic.created_at || new Date().toISOString()),
         createdAt: String(clinic.created_at || new Date().toISOString()),
         revenue: 0
       };
@@ -458,7 +472,28 @@ async function sendTeamInviteEmail(email: string, role: string, invitedBy: strin
 
 async function updateClinicStatus(client: SupabaseClient, clinicId: string, status: string) {
   const { error } = await client.from('clinics').update({ status }).eq('id', clinicId);
-  if (error) throw error;
+  if (!error) return;
+
+  const fallback = await client.from('clinic_control_states').upsert({
+    clinic_id: clinicId,
+    status,
+    updated_at: new Date().toISOString()
+  });
+  if (fallback.error) throw fallback.error;
+}
+
+async function updateClinicTrialState(client: SupabaseClient, clinicId: string, trialEndsAt: string, updatedBy?: string) {
+  const { error } = await client.from('clinics').update({ status: 'trial', trial_ends_at: trialEndsAt }).eq('id', clinicId);
+  if (!error) return;
+
+  const fallback = await client.from('clinic_control_states').upsert({
+    clinic_id: clinicId,
+    status: 'trial',
+    trial_ends_at: trialEndsAt,
+    updated_by: updatedBy,
+    updated_at: new Date().toISOString()
+  });
+  if (fallback.error) throw fallback.error;
 }
 
 function errorMessage(error: unknown, fallback: string) {
@@ -835,7 +870,7 @@ app.patch('/api/clinics/:id/status', requireAuth, async (req, res) => {
 
   const client = getSupabase();
   if (client) {
-    await client.from('clinics').update({ status }).eq('id', req.params.id);
+    await updateClinicStatus(client, String(req.params.id), status);
     await writeSuperLog(
       client,
       'clinic_status_updated',
@@ -866,14 +901,7 @@ app.post('/api/clinics/:id/trial', requireAuth, async (req, res) => {
   const trialEndsAt = iso(days);
 
   try {
-    const statusUpdate = await client
-      .from('clinics')
-      .update({ status: 'trial', trial_ends_at: trialEndsAt })
-      .eq('id', clinic.id);
-
-    if (statusUpdate.error) {
-      await updateClinicStatus(client, clinic.id, 'trial');
-    }
+    await updateClinicTrialState(client, clinic.id, trialEndsAt, res.locals.session?.email);
 
     await client
       .from('subscriptions')

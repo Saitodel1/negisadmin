@@ -50,6 +50,21 @@ create index if not exists payments_created_at_idx
 alter table public.clinics
   add column if not exists trial_ends_at timestamptz;
 
+alter table public.clinics
+  add column if not exists status text not null default 'active';
+
+create table if not exists public.clinic_control_states (
+  clinic_id uuid primary key,
+  status text not null default 'active',
+  trial_ends_at timestamptz,
+  updated_by text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists clinic_control_states_status_idx
+  on public.clinic_control_states (status);
+
 do $$
 declare
   constraint_record record;
