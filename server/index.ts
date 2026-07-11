@@ -221,9 +221,10 @@ async function findAuthUserIdByEmail(client: SupabaseClient, email: string) {
     const { data, error } = await client.auth.admin.listUsers({ page, perPage: 1000 });
     if (error) throw error;
 
-    const user = data.users.find((item) => item.email?.trim().toLowerCase() === normalizedEmail);
+    const authUsers = data.users as Array<{ id: string; email?: string | null }>;
+    const user = authUsers.find((item) => item.email?.trim().toLowerCase() === normalizedEmail);
     if (user) return user.id;
-    if (data.users.length < 1000) break;
+    if (authUsers.length < 1000) break;
   }
 
   return null;
@@ -236,10 +237,11 @@ async function loadAuthUsersById(client: SupabaseClient) {
     const { data, error } = await client.auth.admin.listUsers({ page, perPage: 1000 });
     if (error) throw error;
 
-    data.users.forEach((user) => {
+    const authUsers = data.users as Array<{ id: string; email?: string | null }>;
+    authUsers.forEach((user) => {
       if (user.email) users.set(user.id, { id: user.id, email: user.email });
     });
-    if (data.users.length < 1000) break;
+    if (authUsers.length < 1000) break;
   }
 
   return users;
