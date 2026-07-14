@@ -331,7 +331,7 @@ async function loadClinics(client: SupabaseClient | null): Promise<Clinic[]> {
 
       return {
         id,
-        name: pickText(clinic, ['name', 'clinic_name', 'title', 'company_name'], 'Клиника без названия'),
+        name: pickText(clinic, ['name', 'clinic_name', 'title', 'company_name'], 'Организация без названия'),
         ownerName: pickText(clinic, ['owner_name', 'ownerName', 'admin_name', 'contact_name'], 'Владелец'),
         ownerEmail: pickText(clinic, ['owner_email', 'ownerEmail', 'email', 'admin_email'], ownerEmail || 'email не указан'),
         country: pickText(clinic, ['country', 'country_code', 'countryCode', 'billing_country', 'billingCountry'], ''),
@@ -1056,13 +1056,13 @@ app.post('/api/clinics/:id/reset-password', requireAuth, async (req, res) => {
   const clinics = await loadClinics(client);
   const clinic = clinics.find((item) => item.id === req.params.id);
   if (!clinic) {
-    res.status(404).json({ error: 'Клиника не найдена' });
+    res.status(404).json({ error: 'Организация не найдена' });
     return;
   }
 
   const login = clinic.ownerEmail.trim();
   if (!login || login === 'email не указан' || !login.includes('@')) {
-    res.status(400).json({ error: 'У клиники не указан email администратора' });
+    res.status(400).json({ error: 'У организации не указан email администратора' });
     return;
   }
 
@@ -1125,7 +1125,7 @@ app.post('/api/impersonation/verify', (req, res) => {
 app.patch('/api/clinics/:id/status', requireAuth, async (req, res) => {
   const status = String(req.body?.status || '').trim();
   if (!['active', 'blocked', 'trial', 'expired'].includes(status)) {
-    res.status(400).json({ error: 'Некорректный статус клиники' });
+    res.status(400).json({ error: 'Некорректный статус организации' });
     return;
   }
 
@@ -1154,7 +1154,7 @@ app.post('/api/clinics/:id/trial', requireAuth, async (req, res) => {
 
   const clinic = await findClinicById(client, String(req.params.id));
   if (!clinic) {
-    res.status(404).json({ error: 'Клиника не найдена' });
+    res.status(404).json({ error: 'Организация не найдена' });
     return;
   }
 
@@ -1193,7 +1193,7 @@ app.post('/api/clinics/:id/invoice', requireAuth, async (req, res) => {
 
   const clinic = await findClinicById(client, String(req.params.id));
   if (!clinic) {
-    res.status(404).json({ error: 'Клиника не найдена' });
+    res.status(404).json({ error: 'Организация не найдена' });
     return;
   }
 
@@ -1231,13 +1231,13 @@ app.delete('/api/clinics/:id', requireAuth, async (req, res) => {
 
   const clinic = await findClinicById(client, String(req.params.id));
   if (!clinic) {
-    res.status(404).json({ error: 'Клиника не найдена' });
+    res.status(404).json({ error: 'Организация не найдена' });
     return;
   }
 
   const confirmation = String(req.body?.confirmation || '').trim();
   if (confirmation !== clinic.name) {
-    res.status(400).json({ error: 'Для удаления введите точное название клиники' });
+    res.status(400).json({ error: 'Для удаления введите точное название организации' });
     return;
   }
 
@@ -1246,7 +1246,7 @@ app.delete('/api/clinics/:id', requireAuth, async (req, res) => {
     await writeSuperLog(client, 'clinic_deleted', { clinicId: clinic.id, clinicName: clinic.name, deletedBy: res.locals.session?.email }, null, null, getRequestIp(req));
     res.json({ id: clinic.id, deleted: true });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Не удалось удалить клинику' });
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Не удалось удалить организацию' });
   }
 });
 

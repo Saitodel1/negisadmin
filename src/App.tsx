@@ -256,7 +256,7 @@ type AppSettings = {
 
 const navItems = [
   { label: '\u0413\u043b\u0430\u0432\u043d\u0430\u044f', path: '/dashboard', icon: Gauge },
-  { label: '\u041a\u043b\u0438\u043d\u0438\u043a\u0438', path: '/clinics', icon: Building2 },
+  { label: '\u041e\u0440\u0433\u0430\u043d\u0438\u0437\u0430\u0446\u0438\u0438', path: '/clinics', icon: Building2 },
   { label: '\u0411\u0438\u043b\u043b\u0438\u043d\u0433', path: '/billing', icon: BadgeDollarSign },
   { label: '\u0410\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u0430', path: '/analytics', icon: Activity },
   { label: '\u041c\u043e\u043d\u0438\u0442\u043e\u0440\u0438\u043d\u0433', path: '/monitoring', icon: ShieldAlert },
@@ -271,7 +271,7 @@ const colors = ['#1A56DB', '#10B981', '#F59E0B', '#EF4444', '#64748B', '#8B5CF6'
 
 const teamPermissionSections = [
   ['dashboard', 'Главная'],
-  ['clinics', 'Клиники'],
+  ['clinics', 'Организации'],
   ['billing', 'Биллинг'],
   ['analytics', 'Аналитика'],
   ['monitoring', 'Мониторинг'],
@@ -377,7 +377,7 @@ async function impersonateClinic(clinic: Clinic) {
   localStorage.setItem('negis_impersonate_clinic_name', clinic.name);
   const result = await api<{ url: string }>(`/api/clinics/${clinic.id}/impersonate`, { method: 'POST' });
   window.open(result.url, '_blank', 'noopener,noreferrer');
-  toast.success(`Открываем клинику без повторного входа: ${clinic.name}`);
+  toast.success(`Открываем организацию без повторного входа: ${clinic.name}`);
 }
 
 async function copyToClipboard(value: string, message = 'Скопировано') {
@@ -659,21 +659,21 @@ function DashboardPage() {
         <div>
           <span className="section-kicker">SAAS CONTROL CENTER</span>
           <h1>Операционный центр Negis</h1>
-          <p>Клиники, деньги, риски, поддержка и техническое здоровье платформы в одном рабочем экране.</p>
+          <p>Организации, деньги, риски, поддержка и техническое здоровье платформы в одном рабочем экране.</p>
         </div>
         <div className="hero-monogram">N</div>
       </section>
       <div className="metrics-grid">
-        <MetricCard icon={<Building2 />} label="Клиники" value={data?.metrics.totalClinics || 0} hint="под управлением" />
+        <MetricCard icon={<Building2 />} label="Организации" value={data?.metrics.totalClinics || 0} hint="под управлением" />
         <MetricCard icon={<CheckCircle2 />} label="Активны сегодня" value={data?.metrics.activeToday || 0} hint="за 24 часа" />
         <MetricCard icon={<CalendarClock />} label="Новые за 7 дней" value={data?.metrics.newClinics7d || 0} hint="рост базы" />
-        <MetricCard icon={<Users />} label="Лиды в CRM" value={data?.metrics.totalLeads || 0} hint="по всем клиникам" />
+        <MetricCard icon={<Users />} label="Лиды в CRM" value={data?.metrics.totalLeads || 0} hint="по всем организациям" />
         <MetricCard icon={<Bell />} label="Записи сегодня" value={data?.metrics.bookingsToday || 0} hint="операционная активность" />
         <MetricCard icon={<CircleDollarSign />} label="MRR платформы" value={formatMoney(data?.metrics.revenueMonth || 0)} hint="текущий месяц" />
       </div>
       <div className="content-grid wide-left">
         <section className="neu panel">
-          <PanelHeader title="Клиники под вниманием" action="health score" />
+          <PanelHeader title="Организации под вниманием" action="health score" />
           <ClinicTable clinics={data?.clinics || []} compact />
         </section>
         <section className="neu panel">
@@ -681,13 +681,13 @@ function DashboardPage() {
           <div className="task-stack">
             <ActionTile tone="gold" title="Пробный период" value={trial} text="Проверить настройку CRM и готовность к оплате." />
             <ActionTile tone="red" title="Заблокированы" value={blocked} text="Разобрать оплату, риски или причину ограничения доступа." />
-            <ActionTile tone="blue" title="Нет активности" value={noActivity} text="Связаться с клиниками без действий больше 7 дней." />
+            <ActionTile tone="blue" title="Нет активности" value={noActivity} text="Связаться с организациями без действий больше 7 дней." />
           </div>
         </section>
       </div>
       <div className="content-grid wide-left">
         <section className="neu panel">
-          <PanelHeader title="Регистрации клиник" />
+          <PanelHeader title="Регистрации организаций" />
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={data?.registrationStats || []}>
               <CartesianGrid stroke="#d7dde8" strokeDasharray="4 4" />
@@ -756,7 +756,7 @@ function ClinicTable({ clinics, compact = false }: { clinics: Clinic[]; compact?
       <table>
         <thead>
           <tr>
-            <th>Клиника</th>
+            <th>Организация</th>
             <th>Владелец</th>
             {!compact && <th>Тариф</th>}
             <th>Статус</th>
@@ -791,7 +791,7 @@ function ClinicTable({ clinics, compact = false }: { clinics: Clinic[]; compact?
               {!compact && <td>{relativeTime(clinic.lastActivity)}</td>}
               <td>
                 <div className="row-actions">
-                  <Link className="mini-button secondary-action" to={`/clinics/${clinic.id}`} title="Обзор клиники">
+                  <Link className="mini-button secondary-action" to={`/clinics/${clinic.id}`} title="Обзор организации">
                     <Eye size={16} />
                     Обзор
                   </Link>
@@ -808,7 +808,7 @@ function ClinicTable({ clinics, compact = false }: { clinics: Clinic[]; compact?
                         <Gift size={16} />
                         Пробный
                       </button>
-                      <button className="mini-button delete-action" onClick={() => setDeleteClinic(clinic)} title="Удалить клинику">
+                      <button className="mini-button delete-action" onClick={() => setDeleteClinic(clinic)} title="Удалить организацию">
                         <Trash2 size={16} />
                         Удалить
                       </button>
@@ -900,7 +900,7 @@ function DeleteClinicModal({ clinic, onClose }: { clinic: Clinic; onClose: () =>
         body: JSON.stringify({ confirmation })
       }),
     onSuccess: () => {
-      toast.success('Клиника удалена');
+      toast.success('Организация удалена');
       queryClient.invalidateQueries({ queryKey: ['clinics'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
@@ -916,8 +916,8 @@ function DeleteClinicModal({ clinic, onClose }: { clinic: Clinic; onClose: () =>
       <div className="modal-card neu">
         <button className="icon-button modal-close" onClick={onClose} aria-label="Закрыть">×</button>
         <div>
-          <h3>Удалить клинику</h3>
-          <p>Это действие удалит клинику и связанные записи из админки.</p>
+          <h3>Удалить организацию</h3>
+          <p>Это действие удалит организацию и связанные записи из админки.</p>
         </div>
         <div className="danger-note">
           Введите точное название: <strong>{clinic.name}</strong>
@@ -951,7 +951,7 @@ function ClinicsPage() {
       <div className="toolbar neu">
         <div className="search-field">
           <Search size={18} />
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Поиск по клинике или email" />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Поиск по организации или email" />
         </div>
         <select value={status} onChange={(event) => setStatus(event.target.value)}>
           <option value="all">Все статусы</option>
@@ -982,7 +982,7 @@ function ClinicsPage() {
         </button>
       </div>
       <section className="neu panel">
-        <PanelHeader title="Все клиники" action={`${filtered.length} записей`} />
+        <PanelHeader title="Все организации" action={`${filtered.length} записей`} />
         <ClinicTable clinics={filtered} />
       </section>
     </section>
@@ -1006,7 +1006,7 @@ function ClinicDetailPage() {
   const updateStatus = useMutation({
     mutationFn: (status: string) => api(`/api/clinics/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
     onSuccess: () => {
-      toast.success('Статус клиники обновлён');
+      toast.success('Статус организации обновлён');
       queryClient.invalidateQueries({ queryKey: ['clinic', id] });
       queryClient.invalidateQueries({ queryKey: ['clinics'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
@@ -1050,7 +1050,7 @@ function ClinicDetailPage() {
       <section className="clinic-overview-grid">
         <article className="overview-card neu">
           <span>01</span>
-          <h3>Обзор клиники</h3>
+          <h3>Обзор организации</h3>
           <p>Сводка по владельцу, тарифу, активности и рискам.</p>
           <b>{clinic.plan}</b>
         </article>
@@ -1069,16 +1069,16 @@ function ClinicDetailPage() {
         <article className="overview-card neu">
           <span>04</span>
           <h3>Деньги</h3>
-          <p>Оценка выручки и потенциал клиники для перехода на старший тариф.</p>
+          <p>Оценка выручки и потенциал организации для перехода на старший тариф.</p>
           <b>{formatMoney(clinic.revenue)}</b>
         </article>
       </section>
       <div className="content-grid">
         <section className="neu panel">
-          <PanelHeader title="Информация клиники" />
+          <PanelHeader title="Информация об организации" />
           <InfoRows
             rows={[
-              ['Название клиники', clinic.name],
+              ['Название организации', clinic.name],
               ['Email владельца', clinic.ownerEmail],
               ['Тариф текущий', clinic.plan],
               ['Дата регистрации', formatDate(clinic.createdAt)],
@@ -1112,7 +1112,7 @@ function ClinicDetailPage() {
           <MetricCard icon={<Users />} label="Лидов всего" value={clinic.leadsCount} hint="за всё время" />
           <MetricCard icon={<CalendarClock />} label="Записей всего" value={clinic.bookingsCount} hint="за всё время" />
           <MetricCard icon={<CheckCircle2 />} label="Пришло клиентов" value={Math.round(clinic.bookingsCount * 0.68)} hint="конверсия" />
-          <MetricCard icon={<CircleDollarSign />} label="Выручка клиники" value={formatMoney(clinic.revenue)} hint="оценка" />
+          <MetricCard icon={<CircleDollarSign />} label="Выручка организации" value={formatMoney(clinic.revenue)} hint="оценка" />
         </section>
       </div>
       <div className="content-grid">
@@ -1276,9 +1276,9 @@ function UsersPage() {
     <DataPage
       title="Пользователи"
       rows={users.data?.users || []}
-      columns={['Имя', 'Email', 'Клиника', 'Тариф', 'Регистрация', 'Последний вход', 'KYC']}
+      columns={['Имя', 'Email', 'Организация', 'Тариф', 'Регистрация', 'Последний вход', 'KYC']}
       render={(user) => [user.name, user.email, user.clinic, user.plan, formatDate(user.createdAt), relativeTime(user.lastLogin), statusLabel(user.kyc)]}
-      actionLabel="Клиника"
+      actionLabel="Организация"
       onOpen={(user) => navigate(`/clinics/${user.clinicId}`)}
     />
   );
@@ -1330,9 +1330,9 @@ function SubscriptionsPage() {
       <DataPage
         title="Подписки"
         rows={subscriptionRows}
-        columns={['Клиника', 'Тариф', 'Начало', 'Окончание', 'Сумма', 'Статус']}
+        columns={['Организация', 'Тариф', 'Начало', 'Окончание', 'Сумма', 'Статус']}
         render={(sub) => [sub.clinic, sub.plan, formatDate(sub.startsAt), formatDate(sub.endsAt), formatMoney(sub.amount), statusLabel(sub.status)]}
-        actionLabel="Открыть клинику"
+        actionLabel="Открыть организацию"
         onOpen={(sub) => navigate(`/clinics/${sub.clinicId}`)}
         embedded
       />
@@ -1460,9 +1460,9 @@ function FinancesPage() {
       <DataPage
         title="История платежей"
         rows={finances.data?.payments || []}
-        columns={['Клиника', 'Тариф', 'Сумма', 'Метод', 'Дата', 'Статус']}
+        columns={['Организация', 'Тариф', 'Сумма', 'Метод', 'Дата', 'Статус']}
         render={(payment) => [payment.clinic, payment.plan, formatPaymentAmount(payment), payment.method, formatDate(payment.createdAt), statusLabel(payment.status)]}
-        actionLabel="Клиника"
+        actionLabel="Организация"
         onOpen={(payment) => navigate(`/clinics/${payment.clinicId}`)}
         embedded
       />
@@ -1494,7 +1494,7 @@ function LogsPage() {
     <DataPage
       title="Логи"
       rows={logs.data?.logs || []}
-      columns={['Время', 'Клиника', 'Пользователь', 'Действие', 'Детали', 'IP']}
+      columns={['Время', 'Организация', 'Пользователь', 'Действие', 'Детали', 'IP']}
       render={(log) => [formatTime(log.time), log.clinic, log.user, log.action, log.details, log.ip]}
     />
   );
@@ -1737,20 +1737,20 @@ function BillingPage() {
         </section>
       </div>
       <DataPage
-        title="Подписки клиник"
+        title="Подписки организаций"
         rows={subscriptionRows}
-        columns={['Клиника', 'Тариф', 'Начало', 'Окончание', 'Сумма', 'Статус']}
+        columns={['Организация', 'Тариф', 'Начало', 'Окончание', 'Сумма', 'Статус']}
         render={(sub) => [sub.clinic, sub.plan, formatDate(sub.startsAt), formatDate(sub.endsAt), formatMoney(sub.amount), statusLabel(sub.status)]}
-        actionLabel="Открыть клинику"
+        actionLabel="Открыть организацию"
         onOpen={(sub) => navigate(`/clinics/${sub.clinicId}`)}
         embedded
       />
       <DataPage
         title="История платежей"
         rows={finances.data?.payments || []}
-        columns={['Клиника', 'Тариф', 'Сумма', 'Метод', 'Дата', 'Статус']}
+        columns={['Организация', 'Тариф', 'Сумма', 'Метод', 'Дата', 'Статус']}
         render={(payment) => [payment.clinic, payment.plan, formatPaymentAmount(payment), payment.method, formatDate(payment.createdAt), statusLabel(payment.status)]}
-        actionLabel="Клиника"
+        actionLabel="Организация"
         onOpen={(payment) => navigate(`/clinics/${payment.clinicId}`)}
         embedded
       />
@@ -1766,11 +1766,11 @@ function AnalyticsPage() {
 
   return (
     <section className="page-stack">
-      <ModuleHero kicker="ANALYTICS" title="SaaS-аналитика" text="Рост, активность клиник, MRR, источники лидов и продуктовые сигналы для решений." accent="A" />
+      <ModuleHero kicker="ANALYTICS" title="SaaS-аналитика" text="Рост, активность организаций, MRR, источники лидов и продуктовые сигналы для решений." accent="A" />
       <div className="metrics-grid four">
         <MetricCard icon={<CircleDollarSign />} label="MRR" value={formatMoney(finances.data?.revenueMonth || 0)} hint="месячная выручка" />
-        <MetricCard icon={<Activity />} label="Средне лидов" value={avgLeads} hint="на клинику" />
-        <MetricCard icon={<Building2 />} label="Клиники" value={data?.metrics.totalClinics || 0} hint="в базе" />
+        <MetricCard icon={<Activity />} label="Средне лидов" value={avgLeads} hint="на организацию" />
+        <MetricCard icon={<Building2 />} label="Организации" value={data?.metrics.totalClinics || 0} hint="в базе" />
         <MetricCard icon={<CalendarClock />} label="Новые 7д" value={data?.metrics.newClinics7d || 0} hint="темп роста" />
       </div>
       <div className="content-grid wide-left">
@@ -1819,7 +1819,7 @@ function MonitoringPage() {
       <DataPage
         title="Аудит действий"
         rows={logRows}
-        columns={['Время', 'Клиника', 'Пользователь', 'Действие', 'Детали', 'IP']}
+      columns={['Время', 'Организация', 'Пользователь', 'Действие', 'Детали', 'IP']}
         render={(log) => [formatTime(log.time), log.clinic, log.user, log.action, log.details, log.ip]}
         embedded
       />
@@ -1831,18 +1831,18 @@ function SupportPage() {
   return (
     <SaaSModulePage
       kicker="SUPPORT DESK"
-      title="Поддержка клиник"
+      title="Поддержка организаций"
       accent="S"
       text="Единая очередь заявок: подключение, перенос базы, рекламные аккаунты, ошибки CRM и коммуникация."
       cards={[
         ['Новые заявки', '0', 'ожидает support API'],
         ['В работе', '0', 'назначение ответственных'],
         ['SLA', '0', 'контроль реакции'],
-        ['Эскалации', '0', 'критичные клиники']
+        ['Эскалации', '0', 'критичные организации']
       ]}
       blocks={[
-        ['Очередь обращений', 'Заявки клиник, статусы, ответственные, комментарии и история общения.'],
-        ['Быстрые действия', 'Открыть клинику, войти в CRM, создать задачу, отправить письмо владельцу.'],
+        ['Очередь обращений', 'Заявки организаций, статусы, ответственные, комментарии и история общения.'],
+        ['Быстрые действия', 'Открыть организацию, войти в CRM, создать задачу, отправить письмо владельцу.'],
         ['База решений', 'Инструкции для импорта лидов, Facebook/TikTok, WhatsApp и восстановления доступа.']
       ]}
     />
@@ -2218,7 +2218,7 @@ function SettingsPage() {
       <section className="module-grid">
         <article className="module-card neu"><span>01</span><h3>Безопасность</h3><p>Сессии, доступ команды, аудит опасных действий и ограничения по ролям.</p><button className="neu-btn" onClick={() => toast.info('Раздел безопасности будет подключен к Admin API')}>Открыть</button></article>
         <article className="module-card neu"><span>02</span><h3>Уведомления</h3><p>Email-отправитель, шаблоны счетов, восстановление пароля и системные письма.</p><button className="neu-btn" onClick={() => toast.info('Редактор уведомлений будет подключен к backend')}>Редактировать</button></article>
-        <article className="module-card neu"><span>03</span><h3>Danger Zone</h3><p>Удаление клиник, массовые операции и финансовые правила требуют подтверждения и логирования.</p><button className="neu-btn-danger" onClick={() => toast.warning('Danger Zone требует отдельного подтверждения')}>Настроить</button></article>
+        <article className="module-card neu"><span>03</span><h3>Danger Zone</h3><p>Удаление организаций, массовые операции и финансовые правила требуют подтверждения и логирования.</p><button className="neu-btn-danger" onClick={() => toast.warning('Danger Zone требует отдельного подтверждения')}>Настроить</button></article>
       </section>
     </section>
   );
