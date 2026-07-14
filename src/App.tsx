@@ -1046,6 +1046,7 @@ function ClinicDetailPage() {
           </button>
         </div>
       </div>
+      <OrganizationAccessPanel clinic={clinic} />
       <section className="clinic-overview-grid">
         <article className="overview-card neu">
           <span>01</span>
@@ -1141,6 +1142,110 @@ function ClinicDetailPage() {
           </div>
         </section>
       </div>
+    </section>
+  );
+}
+
+type OrganizationFeature = {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  category: string;
+  isInternal: boolean;
+  planEnabled: boolean;
+  override: boolean | null;
+  enabled: boolean;
+};
+
+type OrganizationAccess = {
+  plans: Array<{ id: string; code: string; name: string; description: string }>;
+  subscription: { planId: string | null; planName: string; status: string; startsAt: string; endsAt: string; trialEndsAt: string };
+  features: OrganizationFeature[];
+  audit: Array<{ id: string; action: string; oldValue: unknown; newValue: unknown; createdAt: string }>;
+};
+
+function OrganizationAccessPanel({ clinic }: { clinic: Clinic }) {
+  const queryClient = useQueryClient();
+  const [tab, setTab] = useState<'plan' | 'features' | 'integrations' | 'automation' | 'activity'>('plan');
+  const access = useQuery({
+    queryKey: ['organization-access', clinic.id],
+    queryFn: () => api<OrganizationAccess>(`/api/clinics/${clinic.id}/access`)
+  });
+  const [planId, setPlanId] = useState('');
+  const [status, setStatus] = useState('active');
+  const [endsAt, setEndsAt] = useState('');
+
+  useEffect(() => {
+    if (!access.data) return;
+    setPlanId(access.data.subscription.planId || '');
+    setStatus(access.data.subscription.status || 'active');
+    setEndsAt(access.data.subscription.endsAt ? access.data.subscription.endsAt.slice(0, 10) : '');
+  }, [access.data]);
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['organization-access', clinic.id] });
+  const updateSubscription = useMutation({
+    mutationFn: () => api(`/api/clinics/${clinic.id}/subscription`, {
+      method: 'PATCH',
+      body: JSON.stringify({ planId, status, startsAt: access.data?.subscription.startsAt || new Date().toISOString(), endsAt: endsAt || null, trialEndsAt: status === 'trial' ? endsAt || null : null })
+    }),
+    onSuccess: () => { toast.success('Тариф организации обновлен'); refresh(); queryClient.invalidateQueries({ queryKey: ['clinics'] }); },
+    onError: (error) => toast.error(error.message)
+  });
+  const setOverride = useMutation({
+    mutationFn: ({ feature, isEnabled }: { feature: OrganizationFeature; isEnabled: boolean }) => api(`/api/clinics/${clinic.id}/features/${feature.key}`, { method: 'PUT', body: JSON.stringify({ isEnabled }) }),
+    onSuccess: () => { toast.success('Доступ обновлен'); refresh(); },
+    onError: (error) => toast.error(error.message)
+  });
+  const resetOverride = useMutation({
+    mutationFn: (feature: OrganizationFeature) => api(`/api/clinics/${clinic.id}/features/${feature.key}`, { method: 'DELETE' }),
+    onSuccess: () => { toast.success('Возвращено к условиям тарифа'); refresh(); },
+    onError: (error) => toast.error(error.message)
+  });
+
+  if (access.isLoading) return <section className="neu panel"><p>Загружаем настройки доступа...</p></section>;
+  if (access.isError || !access.data) return <section className="neu panel"><PanelHeader title="Тариф и доступы" /><p>Сначала выполните SQL `2026-07-14_workspace_features.sql`. Без него управлять доступами нечем.</p></section>;
+
+  const renderFeatures = (features: OrganizationFeature[]) => (
+    <div className="feature-access-table">
+      <div className="feature-access-head"><span>Возможность</span><span>По тарифу</span><span>Индивидуально</span><span>Итог</span><span /></div>
+      {features.map((feature) => (
+        <div className="feature-access-row" key={feature.id}>
+          <div><strong>{feature.name}</strong><small>{feature.description || feature.key}</small></div>
+          <span>{feature.planEnabled ? 'Да' : 'Нет'}</span>
+          <span>{feature.override === null ? 'По тарифу' : feature.override ? 'Включено' : 'Отключено'}</span>
+          <b className={feature.enabled ? 'access-enabled' : 'access-disabled'}>{feature.enabled ? 'Доступно' : 'Недоступно'}</b>
+          <div className="feature-actions">
+            {feature.override !== null && <button className="mini-button" onClick={() => resetOverride.mutate(feature)}>Сбросить</button>}
+            <button className={feature.enabled ? 'mini-button delete-action' : 'mini-button secondary-action'} onClick={() => setOverride.mutate({ feature, isEnabled: !feature.enabled })}>
+              {feature.enabled ? 'Отключить' : 'Включить'}
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const integrations = access.data.features.filter((item) => item.category === 'Интеграции');
+  const automations = access.data.features.filter((item) => item.category === 'Автоматизации');
+  return (
+    <section className="neu panel organization-access-panel">
+      <PanelHeader title="Тариф, возможности и доступы" action={access.data.subscription.planName} />
+      <div className="organization-tabs" role="tablist">
+        {([
+          ['plan', 'Тариф и лимиты'], ['features', 'Возможности'], ['integrations', 'Подключения'], ['automation', 'Автоматизации'], ['activity', 'Активность']
+        ] as const).map(([key, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}
+      </div>
+      {tab === 'plan' && <div className="subscription-editor">
+        <label><span>Тариф</span><select className="neu-input" value={planId} onChange={(event) => setPlanId(event.target.value)}><option value="">Выберите тариф</option>{access.data.plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}</select></label>
+        <label><span>Статус</span><select className="neu-input" value={status} onChange={(event) => setStatus(event.target.value)}><option value="trial">Пробный</option><option value="active">Активен</option><option value="suspended">Приостановлен</option><option value="blocked">Заблокирован</option><option value="expired">Истек</option></select></label>
+        <label><span>Окончание доступа</span><input className="neu-input" type="date" value={endsAt} onChange={(event) => setEndsAt(event.target.value)} /></label>
+        <button className="neu-btn-primary" disabled={!planId || updateSubscription.isPending} onClick={() => updateSubscription.mutate()}>{updateSubscription.isPending ? 'Сохраняем' : 'Сохранить'}</button>
+      </div>}
+      {tab === 'features' && renderFeatures(access.data.features)}
+      {tab === 'integrations' && <><p className="access-note">Здесь только разрешение. Клиент сам завершает OAuth, QR или API-подключение в своей CRM; токены админка не показывает.</p>{renderFeatures(integrations)}</>}
+      {tab === 'automation' && renderFeatures(automations)}
+      {tab === 'activity' && <div className="feature-audit-list">{access.data.audit.length ? access.data.audit.map((item) => <div key={item.id}><strong>{item.action}</strong><span>{formatDate(item.createdAt)}</span></div>) : <p>Изменений доступов пока нет.</p>}</div>}
     </section>
   );
 }

@@ -2794,6 +2794,26 @@ body {
   line-height: 1.55;
 }
 
+.organization-access-panel { overflow: hidden; }
+.organization-tabs { display: flex; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid #e5edf8; padding-bottom: 14px; margin-bottom: 18px; }
+.organization-tabs button { border: 0; background: #edf4ff; color: #526783; border-radius: 8px; padding: 9px 12px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.organization-tabs button.active { background: #124a9b; color: #fff; box-shadow: 0 5px 14px rgba(18, 74, 155, .2); }
+.subscription-editor { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 14px; align-items: end; }
+.subscription-editor label { display: grid; gap: 6px; color: #61718a; font-size: 12px; font-weight: 700; }
+.access-note { margin: 0 0 14px; color: #62718a; font-size: 13px; }
+.feature-access-table { display: grid; gap: 2px; }
+.feature-access-head, .feature-access-row { display: grid; grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(95px, 1fr)) minmax(160px, 1fr); align-items: center; gap: 12px; }
+.feature-access-head { color: #6c7d98; font-size: 12px; font-weight: 800; padding: 0 12px 10px; }
+.feature-access-row { min-height: 66px; padding: 10px 12px; background: #f8fbff; border-radius: 8px; color: #53647d; font-size: 13px; }
+.feature-access-row strong { display: block; color: #1d2d45; }
+.feature-access-row small { display: block; color: #8090a8; margin-top: 3px; }
+.access-enabled { color: #0b8965; }
+.access-disabled { color: #b24343; }
+.feature-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.feature-audit-list { display: grid; gap: 8px; }
+.feature-audit-list > div { display: flex; justify-content: space-between; padding: 12px; border-radius: 8px; background: #f8fbff; color: #687895; font-size: 13px; }
+.feature-audit-list strong { color: #1d2d45; }
+
 @media (max-width: 760px) {
   .app-shell,
   .app-shell.collapsed {
@@ -2812,4 +2832,9 @@ body {
     border-radius: 24px;
     font-size: 40px;
   }
+
+  .subscription-editor { grid-template-columns: 1fr; }
+  .feature-access-head { display: none; }
+  .feature-access-row { grid-template-columns: 1fr; }
+  .feature-actions { justify-content: flex-start; }
 }

@@ -353,6 +353,97 @@ async function findClinicById(client: SupabaseClient | null, clinicId: string) {
   return clinics.find((item) => item.id === clinicId) || null;
 }
 
+type WorkspaceFeature = {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  category: string;
+  isInternal: boolean;
+  planEnabled: boolean;
+  override: boolean | null;
+  enabled: boolean;
+};
+
+async function loadWorkspaceAccess(client: SupabaseClient, clinic: Clinic) {
+  const [{ data: plans, error: plansError }, { data: features, error: featuresError }, { data: subscription, error: subscriptionError }, { data: overrides, error: overridesError }] = await Promise.all([
+    client.from('plans').select('*').order('sort_order', { ascending: true }),
+    client.from('features').select('*').eq('is_active', true).order('category').order('name'),
+    client.from('workspace_subscriptions').select('*').eq('clinic_id', clinic.id).maybeSingle(),
+    client.from('workspace_feature_overrides').select('*').eq('clinic_id', clinic.id)
+  ]);
+
+  const schemaError = plansError || featuresError || subscriptionError || overridesError;
+  if (schemaError) {
+    throw new Error('Модуль тарифов еще не создан. Выполните SQL: supabase/2026-07-14_workspace_features.sql');
+  }
+
+  const planRows = (plans || []) as Array<Record<string, unknown>>;
+  const currentPlan = planRows.find((plan) => String(plan.id) === String(subscription?.plan_id || ''))
+    || planRows.find((plan) => String(plan.code || '').toLowerCase() === clinic.plan.toLowerCase())
+    || planRows.find((plan) => String(plan.name || '').toLowerCase() === clinic.plan.toLowerCase())
+    || null;
+  const { data: planFeatures, error: planFeaturesError } = currentPlan
+    ? await client.from('plan_features').select('*').eq('plan_id', String(currentPlan.id))
+    : { data: [], error: null };
+  if (planFeaturesError) throw new Error('Не удалось прочитать возможности тарифа.');
+
+  const planFeatureById = new Map((planFeatures || []).map((row: Record<string, unknown>) => [String(row.feature_id), Boolean(row.is_enabled)]));
+  const overrideById = new Map((overrides || []).map((row: Record<string, unknown>) => [String(row.feature_id), Boolean(row.is_enabled)]));
+  const rows: WorkspaceFeature[] = ((features || []) as Array<Record<string, unknown>>).map((feature) => {
+    const featureId = String(feature.id);
+    const planEnabled = planFeatureById.get(featureId) || false;
+    const override = overrideById.has(featureId) ? overrideById.get(featureId)! : null;
+    return {
+      id: featureId,
+      key: String(feature.key),
+      name: String(feature.name),
+      description: String(feature.description || ''),
+      category: String(feature.category),
+      isInternal: Boolean(feature.is_internal),
+      planEnabled,
+      override,
+      enabled: override === null ? planEnabled : override
+    };
+  });
+
+  const { data: audit } = await client
+    .from('feature_access_audit')
+    .select('*')
+    .eq('clinic_id', clinic.id)
+    .order('created_at', { ascending: false })
+    .limit(30);
+
+  return {
+    plans: planRows.map((plan) => ({ id: String(plan.id), code: String(plan.code || ''), name: String(plan.name), description: String(plan.description || '') })),
+    subscription: {
+      planId: currentPlan ? String(currentPlan.id) : null,
+      planName: currentPlan ? String(currentPlan.name) : clinic.plan,
+      status: String(subscription?.status || clinic.status || 'active'),
+      startsAt: String(subscription?.starts_at || ''),
+      endsAt: String(subscription?.ends_at || ''),
+      trialEndsAt: String(subscription?.trial_ends_at || '')
+    },
+    features: rows,
+    audit: (audit || []).map((item: Record<string, unknown>) => ({
+      id: String(item.id), action: String(item.action), oldValue: item.old_value || null, newValue: item.new_value || null, createdAt: String(item.created_at)
+    }))
+  };
+}
+
+async function requireFeature(client: SupabaseClient, clinicId: string, featureKey: string) {
+  const clinic = await findClinicById(client, clinicId);
+  if (!clinic) throw new Error('Организация не найдена');
+  const access = await loadWorkspaceAccess(client, clinic);
+  const feature = access.features.find((item) => item.key === featureKey);
+  if (!feature?.enabled) {
+    const error = new Error('feature_not_available');
+    (error as Error & { statusCode?: number }).statusCode = 403;
+    throw error;
+  }
+  return feature;
+}
+
 async function writeSuperLog(
   client: SupabaseClient | null,
   action: string,
@@ -746,6 +837,95 @@ app.get('/api/clinics/:id', requireAuth, async (req, res) => {
       { name: 'Потери', value: 0 }
     ]
   });
+});
+
+app.get('/api/clinics/:id/access', requireAuth, async (req, res) => {
+  const client = getSupabase();
+  if (!client) return res.status(500).json({ error: 'Supabase service role не настроен' });
+  try {
+    const clinic = await findClinicById(client, String(req.params.id));
+    if (!clinic) return res.status(404).json({ error: 'Организация не найдена' });
+    res.json(await loadWorkspaceAccess(client, clinic));
+  } catch (error) {
+    res.status(500).json({ error: errorMessage(error, 'Не удалось загрузить доступы организации') });
+  }
+});
+
+app.patch('/api/clinics/:id/subscription', requireAuth, async (req, res) => {
+  const client = getSupabase();
+  if (!client) return res.status(500).json({ error: 'Supabase service role не настроен' });
+  const { planId, status, startsAt, endsAt, trialEndsAt } = req.body || {};
+  if (!['trial', 'active', 'suspended', 'blocked', 'expired'].includes(String(status))) {
+    return res.status(400).json({ error: 'Некорректный статус подписки' });
+  }
+  const { data: plan, error: planError } = await client.from('plans').select('*').eq('id', String(planId)).maybeSingle();
+  if (planError || !plan) return res.status(400).json({ error: 'Тариф не найден' });
+  const payload = {
+    clinic_id: String(req.params.id),
+    plan_id: planId,
+    status,
+    starts_at: startsAt || null,
+    ends_at: endsAt || null,
+    trial_ends_at: trialEndsAt || null,
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await client.from('workspace_subscriptions').upsert(payload, { onConflict: 'clinic_id' });
+  if (error) return res.status(500).json({ error: error.message });
+  await updateClinicStatus(client, String(req.params.id), String(status));
+  await writeSuperLog(client, 'workspace_subscription_updated', { ...payload, updatedBy: res.locals.session?.email }, String(req.params.id), null, getRequestIp(req));
+  res.json({ ok: true, plan: { id: plan.id, name: plan.name } });
+});
+
+app.put('/api/clinics/:id/features/:featureKey', requireAuth, async (req, res) => {
+  const client = getSupabase();
+  if (!client) return res.status(500).json({ error: 'Supabase service role не настроен' });
+  const isEnabled = req.body?.isEnabled;
+  if (typeof isEnabled !== 'boolean') return res.status(400).json({ error: 'Передайте isEnabled: true или false' });
+  const { data: feature, error: featureError } = await client.from('features').select('*').eq('key', String(req.params.featureKey)).maybeSingle();
+  if (featureError || !feature) return res.status(404).json({ error: 'Возможность не найдена' });
+  const { data: previous } = await client.from('workspace_feature_overrides').select('*').eq('clinic_id', String(req.params.id)).eq('feature_id', feature.id).maybeSingle();
+  const { error } = await client.from('workspace_feature_overrides').upsert({
+    clinic_id: String(req.params.id),
+    feature_id: feature.id,
+    is_enabled: isEnabled,
+    reason: String(req.body?.reason || '').trim() || null,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'clinic_id,feature_id' });
+  if (error) return res.status(500).json({ error: error.message });
+  await client.from('feature_access_audit').insert({
+    clinic_id: String(req.params.id),
+    feature_id: feature.id,
+    action: isEnabled ? 'feature_enabled_manually' : 'feature_disabled_manually',
+    old_value: previous || null,
+    new_value: { is_enabled: isEnabled, reason: req.body?.reason || null, changed_by: res.locals.session?.email }
+  });
+  await writeSuperLog(client, 'workspace_feature_override_updated', { featureKey: feature.key, isEnabled, updatedBy: res.locals.session?.email }, String(req.params.id), null, getRequestIp(req));
+  res.json({ ok: true });
+});
+
+app.delete('/api/clinics/:id/features/:featureKey', requireAuth, async (req, res) => {
+  const client = getSupabase();
+  if (!client) return res.status(500).json({ error: 'Supabase service role не настроен' });
+  const { data: feature } = await client.from('features').select('*').eq('key', String(req.params.featureKey)).maybeSingle();
+  if (!feature) return res.status(404).json({ error: 'Возможность не найдена' });
+  const { error } = await client.from('workspace_feature_overrides').delete().eq('clinic_id', String(req.params.id)).eq('feature_id', feature.id);
+  if (error) return res.status(500).json({ error: error.message });
+  await client.from('feature_access_audit').insert({ clinic_id: String(req.params.id), feature_id: feature.id, action: 'feature_override_reset', new_value: { changed_by: res.locals.session?.email } });
+  res.json({ ok: true });
+});
+
+// Use this guard from CRM / Edge Functions before any paid action.
+// It is deliberately protected here: the CRM must use its own service-to-service credentials.
+app.get('/api/internal/feature-check/:clinicId/:featureKey', requireAuth, async (req, res) => {
+  const client = getSupabase();
+  if (!client) return res.status(500).json({ error: 'Supabase service role не настроен' });
+  try {
+    const feature = await requireFeature(client, String(req.params.clinicId), String(req.params.featureKey));
+    res.json({ allowed: true, feature: feature.key });
+  } catch (error) {
+    const status = (error as Error & { statusCode?: number }).statusCode || 500;
+    res.status(status).json({ error: errorMessage(error, 'Проверка возможности не удалась') });
+  }
 });
 
 app.get('/api/users', requireAuth, async (_req, res) => {
