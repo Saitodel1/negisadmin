@@ -851,6 +851,28 @@ app.get('/api/clinics/:id/access', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/api/integrations', requireAuth, async (_req, res) => {
+  const client = getSupabase();
+  if (!client) return res.status(500).json({ error: 'Supabase service role не настроен' });
+  const [{ data, error }, clinics] = await Promise.all([
+    client.from('organization_integrations').select('*').order('updated_at', { ascending: false }).limit(300),
+    loadClinics(client)
+  ]);
+  if (error) return res.status(500).json({ error: 'Интеграционная шина еще не создана. Выполните SQL: supabase/2026-07-15_seed_plans_and_integrations.sql' });
+  const clinicName = new Map(clinics.map((clinic) => [clinic.id, clinic.name]));
+  const connections = (data || []).map((item: Record<string, unknown>) => ({
+    id: String(item.id),
+    provider: String(item.provider),
+    name: String(item.display_name || item.provider),
+    organization: clinicName.get(String(item.clinic_id)) || 'Организация удалена',
+    status: String(item.status),
+    lastSyncedAt: String(item.last_synced_at || ''),
+    lastError: String(item.last_error || ''),
+    connectedAt: String(item.connected_at || '')
+  }));
+  res.json({ connections });
+});
+
 app.patch('/api/clinics/:id/subscription', requireAuth, async (req, res) => {
   const client = getSupabase();
   if (!client) return res.status(500).json({ error: 'Supabase service role не настроен' });

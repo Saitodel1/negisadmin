@@ -25,6 +25,7 @@ import {
   LogOut,
   ListChecks,
   Megaphone,
+  PlugZap,
   QrCode,
   RefreshCw,
   ReceiptText,
@@ -1849,7 +1850,7 @@ function SupportPage() {
   );
 }
 
-function IntegrationsPage() {
+function LegacyIntegrationsPage() {
   const [connect, setConnect] = useState<{ name: string; type: string } | null>(null);
   const integrations = [
     { name: 'Facebook Ads', type: 'ads', status: 'готово к подключению', hint: 'лиды, пиксель, события' },
@@ -1924,6 +1925,47 @@ function IntegrationModal({ integration, onClose }: { integration: { name: strin
         </div>
       </div>
     </div>
+  );
+}
+
+function IntegrationsPage() {
+  const integrations = useQuery({
+    queryKey: ['integrations'],
+    queryFn: () => api<{ connections: Array<{ id: string; provider: string; name: string; organization: string; status: string; lastSyncedAt: string; lastError: string; connectedAt: string }> }>('/api/integrations')
+  });
+  const connections = integrations.data?.connections || [];
+  const connected = connections.filter((item) => item.status === 'connected').length;
+  const errors = connections.filter((item) => item.status === 'error').length;
+
+  return (
+    <section className="page-stack">
+      <ModuleHero kicker="INTEGRATION HUB" title="Интеграции" text="Фактические подключения организаций, синхронизации и ошибки. Подключение выполняется клиентом в CRM, не из этой панели." accent="I" />
+      <section className="metrics-grid">
+        <MetricCard icon={<PlugZap />} label="Подключено" value={connected} hint="активные соединения" />
+        <MetricCard icon={<Activity />} label="Всего соединений" value={connections.length} hint="в организациях" />
+        <MetricCard icon={<ShieldAlert />} label="Ошибки" value={errors} hint="требуют внимания" />
+      </section>
+      <section className="neu panel">
+        <PanelHeader title="Состояние интеграций" action={`${connections.length} записей`} />
+        {integrations.isLoading && <p>Загружаем фактические подключения...</p>}
+        {integrations.isError && <p className="access-note">{integrations.error.message}</p>}
+        {!integrations.isLoading && !integrations.isError && !connections.length && <p className="access-note">Подключений пока нет. Это честное состояние: сначала клиент подключает сервис в CRM, затем здесь появятся статус, время синхронизации и ошибки.</p>}
+        {!!connections.length && <DataPage
+          title="Подключения"
+          columns={['Интеграция', 'Организация', 'Статус', 'Последняя синхронизация', 'Ошибка']}
+          rows={connections}
+          render={(item) => [item.name, item.organization, statusLabel(item.status), item.lastSyncedAt ? formatDate(item.lastSyncedAt) : 'Еще не было', item.lastError || '—']}
+          actionLabel="Организация"
+          onOpen={() => undefined}
+          embedded
+        />}
+      </section>
+      <section className="module-grid">
+        <article className="module-card neu"><span>01</span><h3>Meta Lead Ads</h3><p>CRM получает лиды из форм Facebook и Instagram через подписанный webhook. Доступ разрешается тарифом, подключение выполняет владелец организации.</p></article>
+        <article className="module-card neu"><span>02</span><h3>WhatsApp / Wazzup</h3><p>Диалоги и уведомления связываются с карточкой лида. Токены хранятся на сервере CRM и сюда не попадают.</p></article>
+        <article className="module-card neu"><span>03</span><h3>Очередь синхронизации</h3><p>Неудачные события не теряются: они попадают в очередь, получают ошибку и могут быть повторены сервером CRM.</p></article>
+      </section>
+    </section>
   );
 }
 
