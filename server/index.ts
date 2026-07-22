@@ -8,6 +8,12 @@ import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { getTimeZoneDayRange } from './metrics';
+import {
+  deleteOrganizationData,
+  findRemainingUserReferences,
+  loadOrganizationDeletionSchema,
+  type OrganizationDeletionSchema
+} from './organization-deletion';
 import { buildAllowedOrigins, isOriginAllowed, LoginAttemptGuard } from './security';
 
 dotenv.config();
@@ -111,6 +117,7 @@ type CurrencyQuote = {
 const now = new Date();
 const iso = (offsetDays = 0) => new Date(now.getTime() + offsetDays * 86400000).toISOString();
 let cachedKgsKztQuote: { quote: CurrencyQuote; expiresAt: number } | null = null;
+let cachedOrganizationDeletionSchema: { schema: OrganizationDeletionSchema; expiresAt: number } | null = null;
 
 const sourceStats: Array<{ name: string; value: number }> = [];
 
@@ -277,6 +284,18 @@ async function findAuthUserIdByEmail(client: SupabaseClient, email: string) {
   }
 
   return null;
+}
+
+async function getOrganizationDeletionSchema() {
+  if (cachedOrganizationDeletionSchema && cachedOrganizationDeletionSchema.expiresAt > Date.now()) {
+    return cachedOrganizationDeletionSchema.schema;
+  }
+  const url = process.env.SUPABASE_URL?.trim();
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!url || !key) throw new Error('Supabase service role не настроен');
+  const schema = await loadOrganizationDeletionSchema(url, key);
+  cachedOrganizationDeletionSchema = { schema, expiresAt: Date.now() + 5 * 60 * 1000 };
+  return schema;
 }
 
 async function loadAuthUsersById(client: SupabaseClient) {
@@ -740,33 +759,6 @@ async function createInvoice(client: SupabaseClient, clinic: Clinic, amountKgs: 
   const second = await client.from('payments').insert(basicPayload).select('*').single();
   if (second.error) throw second.error;
   return second.data;
-}
-
-async function deleteClinicCascade(client: SupabaseClient, clinicId: string) {
-  const relatedTables = [
-    'bookings',
-    'leads',
-    'services',
-    'agents',
-    'roles',
-    'lead_statuses',
-    'booking_statuses',
-    'subscriptions',
-    'payments',
-    'shifts',
-    'user_roles'
-  ];
-
-  for (const table of relatedTables) {
-    await client
-      .from(table)
-      .delete()
-      .eq('clinic_id', clinicId)
-      .then(() => undefined, () => undefined);
-  }
-
-  const { error } = await client.from('clinics').delete().eq('id', clinicId);
-  if (error) throw error;
 }
 
 async function getOverview() {
@@ -1316,7 +1308,15 @@ app.delete('/api/clinics/:id', requireAuth, async (req, res) => {
     return;
   }
 
-  const clinic = await findClinicById(client, String(req.params.id));
+  const clinicId = String(req.params.id);
+  const [{ data: rawClinic, error: rawClinicError }, clinic] = await Promise.all([
+    client.from('clinics').select('*').eq('id', clinicId).maybeSingle(),
+    findClinicById(client, clinicId)
+  ]);
+  if (rawClinicError) {
+    res.status(500).json({ error: `Не удалось прочитать организацию перед удалением: ${rawClinicError.message}` });
+    return;
+  }
   if (!clinic) {
     res.status(404).json({ error: 'Организация не найдена' });
     return;
@@ -1328,12 +1328,74 @@ app.delete('/api/clinics/:id', requireAuth, async (req, res) => {
     return;
   }
 
+  let deletionPhase = 'load_schema';
+  let organizationDeleted = false;
   try {
-    await deleteClinicCascade(client, clinic.id);
-    await writeSuperLog(client, 'clinic_deleted', { clinicId: clinic.id, clinicName: clinic.name, deletedBy: res.locals.session?.email }, null, null, getRequestIp(req));
-    res.json({ id: clinic.id, deleted: true });
+    const schema = await getOrganizationDeletionSchema();
+    const ownerUserId = String(rawClinic?.owner_id || '') || await findAuthUserIdByEmail(client, clinic.ownerEmail);
+    deletionPhase = 'delete_organization_data';
+    const dataDeletion = await deleteOrganizationData(client, clinic.id, schema);
+    deletionPhase = 'delete_organization';
+    const { count: deletedClinics, error: clinicDeleteError } = await client
+      .from('clinics')
+      .delete({ count: 'exact' })
+      .eq('id', clinic.id);
+    if (clinicDeleteError) throw new Error(`Не удалось удалить организацию: ${clinicDeleteError.message}`);
+    if (deletedClinics !== 1) throw new Error('Организация не была удалена из таблицы clinics');
+    organizationDeleted = true;
+
+    let ownerAuthDeleted = false;
+    let ownerAuthRetainedReason = '';
+    if (ownerUserId) {
+      deletionPhase = 'check_owner_references';
+      const remainingReferences = await findRemainingUserReferences(client, ownerUserId, schema);
+      if (remainingReferences.length) {
+        ownerAuthRetainedReason = `Пользователь связан с другими данными: ${remainingReferences.map((item) => `${item.table} (${item.count})`).join(', ')}`;
+      } else {
+        deletionPhase = 'delete_owner_auth';
+        let { error: authDeleteError } = await client.auth.admin.deleteUser(ownerUserId, false);
+        if (authDeleteError && schema.availableTables.has('profiles')) {
+          const profileDelete = await client.from('profiles').delete().eq('id', ownerUserId);
+          if (profileDelete.error) throw new Error(`Организация удалена, но профиль владельца удалить не удалось: ${profileDelete.error.message}`);
+          ({ error: authDeleteError } = await client.auth.admin.deleteUser(ownerUserId, false));
+        }
+        if (authDeleteError) throw new Error(`Организация удалена, но Auth-пользователь остался: ${authDeleteError.message}`);
+        ownerAuthDeleted = true;
+      }
+    }
+
+    deletionPhase = 'write_audit_log';
+    await writeSuperLog(client, 'clinic_deleted_completely', {
+      clinicId: clinic.id,
+      clinicName: clinic.name,
+      ownerEmail: clinic.ownerEmail,
+      ownerAuthDeleted,
+      ownerAuthRetainedReason: ownerAuthRetainedReason || null,
+      deletedRows: dataDeletion.deletedRows,
+      deletedTables: dataDeletion.deletedTables,
+      deletedBy: res.locals.session?.email
+    }, null, null, getRequestIp(req));
+    res.json({
+      id: clinic.id,
+      deleted: true,
+      ownerEmail: clinic.ownerEmail,
+      ownerAuthDeleted,
+      ownerAuthRetainedReason: ownerAuthRetainedReason || null,
+      deletedRows: dataDeletion.deletedRows,
+      deletedTables: dataDeletion.deletedTables.length
+    });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Не удалось удалить организацию' });
+    const message = error instanceof Error ? error.message : 'Не удалось удалить организацию';
+    await writeSuperLog(client, 'clinic_deletion_failed', {
+      clinicId: clinic.id,
+      clinicName: clinic.name,
+      ownerEmail: clinic.ownerEmail,
+      phase: deletionPhase,
+      organizationDeleted,
+      error: message,
+      deletedBy: res.locals.session?.email
+    }, organizationDeleted ? null : clinic.id, null, getRequestIp(req));
+    res.status(500).json({ error: message, phase: deletionPhase, organizationDeleted });
   }
 });
 

@@ -99,6 +99,16 @@ type PasswordRecoveryResult = {
   recoverySent: boolean;
 };
 
+type OrganizationDeletionResult = {
+  id: string;
+  deleted: boolean;
+  ownerEmail: string;
+  ownerAuthDeleted: boolean;
+  ownerAuthRetainedReason: string | null;
+  deletedRows: number;
+  deletedTables: number;
+};
+
 type PaymentRow = {
   id: string;
   clinicId: string;
@@ -888,12 +898,18 @@ function DeleteClinicModal({ clinic, onClose }: { clinic: Clinic; onClose: () =>
   const [confirmation, setConfirmation] = useState('');
   const remove = useMutation({
     mutationFn: () =>
-      api(`/api/clinics/${clinic.id}`, {
+      api<OrganizationDeletionResult>(`/api/clinics/${clinic.id}`, {
         method: 'DELETE',
         body: JSON.stringify({ confirmation })
       }),
-    onSuccess: () => {
-      toast.success('Организация удалена');
+    onSuccess: (result) => {
+      if (result.ownerAuthDeleted) {
+        toast.success(`Организация удалена полностью. Email ${result.ownerEmail} снова доступен.`);
+      } else if (result.ownerAuthRetainedReason) {
+        toast.warning(`Организация удалена, но учетная запись сохранена: ${result.ownerAuthRetainedReason}`);
+      } else {
+        toast.success('Организация и связанные данные удалены');
+      }
       queryClient.invalidateQueries({ queryKey: ['clinics'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
@@ -910,7 +926,7 @@ function DeleteClinicModal({ clinic, onClose }: { clinic: Clinic; onClose: () =>
         <button className="icon-button modal-close" onClick={onClose} aria-label="Закрыть">×</button>
         <div>
           <h3>Удалить организацию</h3>
-          <p>Это действие удалит организацию и связанные записи из админки.</p>
+          <p>Будут удалены данные организации и учетная запись владельца, если она не используется в другой организации. После полного удаления email можно зарегистрировать заново.</p>
         </div>
         <div className="danger-note">
           Введите точное название: <strong>{clinic.name}</strong>
