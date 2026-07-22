@@ -39,25 +39,35 @@ function normalizeCrmUrl(rawUrl: string) {
 
 const app = express();
 const allowedOrigins = buildAllowedOrigins(process.env.ADMIN_ALLOWED_ORIGINS, process.env.NODE_ENV === 'production');
+const crmAppOrigin = new URL(MAIN_NEGIS_APP_URL).origin;
+const IMPERSONATION_VERIFY_PATH = '/api/impersonation/verify';
 const loginAttemptGuard = new LoginAttemptGuard(
   Number(process.env.LOGIN_MAX_FAILURES || 5),
   Number(process.env.LOGIN_ATTEMPT_WINDOW_MS || 15 * 60 * 1000),
   Number(process.env.LOGIN_BLOCK_MS || 15 * 60 * 1000)
 );
 
+function isRequestOriginAllowed(origin: string | undefined, requestPath: string) {
+  if (isOriginAllowed(origin, allowedOrigins)) return true;
+  const normalizedOrigin = origin?.replace(/\/$/, '');
+  const normalizedPath = requestPath.replace(/\/+$/, '') || '/';
+  return normalizedOrigin === crmAppOrigin && normalizedPath === IMPERSONATION_VERIFY_PATH;
+}
+
 app.use((req, res, next) => {
   const origin = req.get('origin');
-  if (!isOriginAllowed(origin, allowedOrigins)) {
+  if (!isRequestOriginAllowed(origin, req.path)) {
     res.status(403).json({ error: 'Origin не разрешён для Negis Control' });
     return;
   }
   next();
 });
-app.use(cors({
-  credentials: true,
-  origin(origin, callback) {
-    callback(null, isOriginAllowed(origin, allowedOrigins));
-  }
+app.use(cors((req, callback) => {
+  const origin = req.headers.origin;
+  callback(null, {
+    credentials: true,
+    origin: isRequestOriginAllowed(origin, req.url.split('?')[0])
+  });
 }));
 app.use(express.json());
 app.use(cookieParser());

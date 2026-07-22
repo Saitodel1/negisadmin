@@ -45,6 +45,25 @@ test('API keeps allowed unauthenticated requests behind auth', async () => {
   assert.equal(response.headers.get('access-control-allow-origin'), 'https://admin.negis.online');
 });
 
+test('CRM origin can verify impersonation only and cannot access protected Admin API', async () => {
+  const verification = await fetch(`${baseUrl}/api/impersonation/verify`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      Origin: 'https://crm.negis.online'
+    },
+    body: JSON.stringify({ token: 'invalid-test-token' })
+  });
+
+  assert.equal(verification.status, 401);
+  assert.equal(verification.headers.get('access-control-allow-origin'), 'https://crm.negis.online');
+
+  const protectedAdminApi = await fetch(`${baseUrl}/api/auth/me`, {
+    headers: { Origin: 'https://crm.negis.online' }
+  });
+  assert.equal(protectedAdminApi.status, 403);
+});
+
 test('login endpoint blocks repeated invalid credentials', async () => {
   const statuses: number[] = [];
   for (let attempt = 0; attempt < 3; attempt += 1) {
