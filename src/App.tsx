@@ -16,7 +16,6 @@ import {
   CircleDollarSign,
   ClipboardList,
   Clock3,
-  Copy,
   Eye,
   FileDown,
   Gift,
@@ -93,11 +92,11 @@ type Plan = {
   limits: string;
 };
 
-type ClinicAccess = {
+type PasswordRecoveryResult = {
   login: string;
-  temporaryPassword: string;
   clinicId: string;
   clinicName: string;
+  recoverySent: boolean;
 };
 
 type PaymentRow = {
@@ -261,9 +260,7 @@ const navItems = [
   { label: '\u0411\u0438\u043b\u043b\u0438\u043d\u0433', path: '/billing', icon: BadgeDollarSign },
   { label: '\u0410\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u0430', path: '/analytics', icon: Activity },
   { label: '\u041c\u043e\u043d\u0438\u0442\u043e\u0440\u0438\u043d\u0433', path: '/monitoring', icon: ShieldAlert },
-  { label: '\u041f\u043e\u0434\u0434\u0435\u0440\u0436\u043a\u0430', path: '/support', icon: Bell },
   { label: '\u0418\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u0438', path: '/integrations', icon: SlidersHorizontal },
-  { label: 'Negis App', path: '/app-dashboard', icon: Smartphone },
   { label: '\u041a\u043e\u043c\u0430\u043d\u0434\u0430', path: '/team', icon: Users },
   { label: '\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438', path: '/settings', icon: Settings }
 ];
@@ -379,11 +376,6 @@ async function impersonateClinic(clinic: Clinic) {
   const result = await api<{ url: string }>(`/api/clinics/${clinic.id}/impersonate`, { method: 'POST' });
   window.open(result.url, '_blank', 'noopener,noreferrer');
   toast.success(`Открываем организацию без повторного входа: ${clinic.name}`);
-}
-
-async function copyToClipboard(value: string, message = 'Скопировано') {
-  await navigator.clipboard.writeText(value);
-  toast.success(message);
 }
 
 function useSession() {
@@ -598,23 +590,23 @@ function Shell() {
           <Route path="/billing" element={<BillingPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/monitoring" element={<MonitoringPage />} />
-          <Route path="/support" element={<SupportPage />} />
+          <Route path="/support" element={<Navigate to="/dashboard" replace />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/team" element={<TeamPage />} />
           <Route path="/users" element={<Navigate to="/team" replace />} />
           <Route path="/subscriptions" element={<Navigate to="/billing" replace />} />
           <Route path="/finances" element={<Navigate to="/billing" replace />} />
           <Route path="/logs" element={<Navigate to="/monitoring" replace />} />
-          <Route path="/app-dashboard" element={<AppDashboardPage />} />
-          <Route path="/app-clients" element={<AppClientsPage />} />
-          <Route path="/app-appointments" element={<AppAppointmentsPage />} />
-          <Route path="/app-qr" element={<AppQrPage />} />
-          <Route path="/app-bonuses" element={<AppBonusesPage />} />
-          <Route path="/app-tasks" element={<AppTasksPage />} />
-          <Route path="/app-promotions" element={<AppPromotionsPage />} />
-          <Route path="/app-moderation" element={<AppModerationPage />} />
-          <Route path="/app-partners" element={<AppPartnersPage />} />
-          <Route path="/app-settings" element={<AppSettingsPage />} />
+          <Route path="/app-dashboard" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/app-clients" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/app-appointments" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/app-qr" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/app-bonuses" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/app-tasks" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/app-promotions" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/app-moderation" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/app-partners" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/app-settings" element={<Navigate to="/dashboard" replace />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
@@ -993,7 +985,6 @@ function ClinicsPage() {
 function ClinicDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
-  const [access, setAccess] = useState<ClinicAccess | null>(null);
   const detail = useQuery({
     queryKey: ['clinic', id],
     queryFn: () =>
@@ -1014,16 +1005,18 @@ function ClinicDetailPage() {
     },
     onError: (error) => toast.error(error.message)
   });
-  const resetPassword = useMutation({
-    mutationFn: () => api<ClinicAccess>(`/api/clinics/${id}/reset-password`, { method: 'POST' }),
+  const sendRecovery = useMutation({
+    mutationFn: () => api<PasswordRecoveryResult>(`/api/clinics/${id}/send-recovery`, { method: 'POST' }),
     onSuccess: (result) => {
-      setAccess(result);
-      toast.success('Временный пароль создан');
+      toast.success(`Ссылка восстановления отправлена на ${result.login}`);
     },
     onError: (error) => toast.error(error.message)
   });
 
-  if (detail.isLoading || !clinic) return <SkeletonGrid />;
+  if (detail.isLoading) return <SkeletonGrid />;
+  if (detail.isError || !clinic) {
+    return <div className="empty-state"><h3>Организация не найдена</h3><p>{detail.error instanceof Error ? detail.error.message : 'Проверьте ссылку и повторите запрос.'}</p></div>;
+  }
 
   return (
     <section className="page-stack">
@@ -1092,19 +1085,16 @@ function ClinicDetailPage() {
               <strong>{clinic.ownerEmail}</strong>
             </div>
             <div>
-              <span>Пароль</span>
-              <strong>{access?.temporaryPassword || 'Не хранится. Можно создать временный.'}</strong>
+              <span>Доступ</span>
+              <strong>Пароль не хранится в Negis Control</strong>
             </div>
             <div className="access-actions">
               <button
                 className="neu-btn-primary"
-                disabled={resetPassword.isPending}
-                onClick={() => resetPassword.mutate()}
+                disabled={sendRecovery.isPending}
+                onClick={() => sendRecovery.mutate()}
               >
-                {resetPassword.isPending ? 'Создаём пароль' : 'Создать временный пароль'}
-              </button>
-              <button className="icon-button" disabled={!access?.temporaryPassword} onClick={() => access && copyToClipboard(access.temporaryPassword, 'Пароль скопирован')} title="Скопировать пароль">
-                <Copy size={17} />
+                {sendRecovery.isPending ? 'Отправляем ссылку' : 'Отправить восстановление доступа'}
               </button>
             </div>
           </div>
@@ -2220,23 +2210,6 @@ function SettingsPage() {
         platform: { name: string; supportEmail: string; trialDays: number; defaultPlan: string; mainAppUrl: string };
       }>('/api/settings')
   });
-  const [supportEmail, setSupportEmail] = useState('');
-  const [trialDays, setTrialDays] = useState('');
-  const [defaultPlan, setDefaultPlan] = useState('');
-  const [mainAppUrl, setMainAppUrl] = useState('');
-
-  useEffect(() => {
-    if (!settings.data) return;
-    setSupportEmail(settings.data.platform.supportEmail || '');
-    setTrialDays(String(settings.data.platform.trialDays || 14));
-    setDefaultPlan(settings.data.platform.defaultPlan || 'Basic');
-    setMainAppUrl(settings.data.platform.mainAppUrl || '');
-  }, [settings.data]);
-
-  const saveSettings = () => {
-    toast.success('Настройки подготовлены к сохранению. Подключите PATCH /api/settings для записи в базу.');
-  };
-
   return (
     <section className="page-stack settings-grid">
       <ModuleHero kicker="PLATFORM SETTINGS" title="Настройки платформы" text="Глобальные параметры Negis Control: домены, email, trial, тариф по умолчанию и безопасные действия." accent="S" />
@@ -2245,22 +2218,13 @@ function SettingsPage() {
         <InfoRows rows={[['Email', settings.data?.profile.email || '—'], ['Роль', 'super_admin']]} />
       </section>
       <section className="neu panel">
-        <PanelHeader title="Редактируемые настройки" action="активная форма" />
-        <div className="settings-form">
-          <label><span>Support email</span><input className="neu-input" value={supportEmail} onChange={(event) => setSupportEmail(event.target.value)} /></label>
-          <label><span>Trial, дней</span><input className="neu-input" type="number" value={trialDays} onChange={(event) => setTrialDays(event.target.value)} /></label>
-          <label><span>Тариф по умолчанию</span><input className="neu-input" value={defaultPlan} onChange={(event) => setDefaultPlan(event.target.value)} /></label>
-          <label><span>Main CRM URL</span><input className="neu-input" value={mainAppUrl} onChange={(event) => setMainAppUrl(event.target.value)} /></label>
-        </div>
-        <div className="modal-actions">
-          <button className="neu-btn" onClick={() => settings.refetch()}>Сбросить</button>
-          <button className="neu-btn-primary" onClick={saveSettings}>Сохранить настройки</button>
-        </div>
-      </section>
-      <section className="module-grid">
-        <article className="module-card neu"><span>01</span><h3>Безопасность</h3><p>Сессии, доступ команды, аудит опасных действий и ограничения по ролям.</p><button className="neu-btn" onClick={() => toast.info('Раздел безопасности будет подключен к Admin API')}>Открыть</button></article>
-        <article className="module-card neu"><span>02</span><h3>Уведомления</h3><p>Email-отправитель, шаблоны счетов, восстановление пароля и системные письма.</p><button className="neu-btn" onClick={() => toast.info('Редактор уведомлений будет подключен к backend')}>Редактировать</button></article>
-        <article className="module-card neu"><span>03</span><h3>Danger Zone</h3><p>Удаление организаций, массовые операции и финансовые правила требуют подтверждения и логирования.</p><button className="neu-btn-danger" onClick={() => toast.warning('Danger Zone требует отдельного подтверждения')}>Настроить</button></article>
+        <PanelHeader title="Параметры платформы" action="только чтение" />
+        <InfoRows rows={[
+          ['Support email', settings.data?.platform.supportEmail || '—'],
+          ['Trial, дней', String(settings.data?.platform.trialDays || '—')],
+          ['Тариф по умолчанию', settings.data?.platform.defaultPlan || '—'],
+          ['Main CRM URL', settings.data?.platform.mainAppUrl || '—']
+        ]} />
       </section>
     </section>
   );

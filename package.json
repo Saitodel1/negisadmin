@@ -8,6 +8,7 @@
     "dev:server": "tsx watch server/index.ts",
     "build": "tsc -p tsconfig.app.json && vite build",
     "start": "node dist-server/index.js",
+    "test": "tsx --test server/security.test.ts server/metrics.test.ts server/api.test.ts",
     "typecheck": "tsc -p tsconfig.app.json && tsc -p tsconfig.node.json"
   },
   "dependencies": {

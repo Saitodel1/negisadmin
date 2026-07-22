@@ -4,10 +4,11 @@ import dotenv from 'dotenv';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { getTimeZoneDayRange } from './metrics';
+import { buildAllowedOrigins, isOriginAllowed, LoginAttemptGuard } from './security';
 
 dotenv.config();
 
@@ -18,6 +19,9 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-only-change-me';
 const CRM_APP_URL = 'https://crm.negis.online/';
 const MAIN_NEGIS_APP_URL = normalizeCrmUrl(process.env.MAIN_NEGIS_APP_URL || CRM_APP_URL);
 const TEAM_INVITE_FROM_EMAIL = process.env.TEAM_INVITE_FROM_EMAIL || 'negissupport@negis.online';
+const PLATFORM_TIME_ZONE = process.env.PLATFORM_TIME_ZONE || 'Asia/Almaty';
+const PASSWORD_RECOVERY_REDIRECT_URL = process.env.PASSWORD_RECOVERY_REDIRECT_URL
+  || new URL('/reset-password', MAIN_NEGIS_APP_URL).toString();
 
 function normalizeCrmUrl(rawUrl: string) {
   const url = new URL(rawUrl || CRM_APP_URL);
@@ -28,8 +32,27 @@ function normalizeCrmUrl(rawUrl: string) {
 }
 
 const app = express();
+const allowedOrigins = buildAllowedOrigins(process.env.ADMIN_ALLOWED_ORIGINS, process.env.NODE_ENV === 'production');
+const loginAttemptGuard = new LoginAttemptGuard(
+  Number(process.env.LOGIN_MAX_FAILURES || 5),
+  Number(process.env.LOGIN_ATTEMPT_WINDOW_MS || 15 * 60 * 1000),
+  Number(process.env.LOGIN_BLOCK_MS || 15 * 60 * 1000)
+);
 
-app.use(cors({ origin: true, credentials: true }));
+app.use((req, res, next) => {
+  const origin = req.get('origin');
+  if (!isOriginAllowed(origin, allowedOrigins)) {
+    res.status(403).json({ error: 'Origin не разрешён для Negis Control' });
+    return;
+  }
+  next();
+});
+app.use(cors({
+  credentials: true,
+  origin(origin, callback) {
+    callback(null, isOriginAllowed(origin, allowedOrigins));
+  }
+}));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -211,17 +234,33 @@ async function safeClinicCount(client: SupabaseClient, table: string, clinicId: 
   return 0;
 }
 
+async function safeBookingsTodayCount(client: SupabaseClient) {
+  const range = getTimeZoneDayRange(new Date(), PLATFORM_TIME_ZONE);
+  const dateColumns = ['appointment_date', 'booking_date', 'date'];
+  for (const column of dateColumns) {
+    const { count, error } = await client.from('bookings').select('*', { count: 'exact', head: true }).eq(column, range.localDate);
+    if (!error) return count || 0;
+  }
+
+  const timestampColumns = ['start_time', 'scheduled_at', 'appointment_at', 'created_at'];
+  for (const column of timestampColumns) {
+    const { count, error } = await client
+      .from('bookings')
+      .select('*', { count: 'exact', head: true })
+      .gte(column, range.start.toISOString())
+      .lt(column, range.end.toISOString());
+    if (!error) return count || 0;
+  }
+
+  return 0;
+}
+
 function pickText(row: Record<string, unknown>, keys: string[], fallback: string) {
   for (const key of keys) {
     const value = row[key];
     if (typeof value === 'string' && value.trim()) return value;
   }
   return fallback;
-}
-
-function generateTemporaryPassword() {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$%';
-  return Array.from({ length: 14 }, () => alphabet[crypto.randomInt(alphabet.length)]).join('');
 }
 
 async function findAuthUserIdByEmail(client: SupabaseClient, email: string) {
@@ -751,9 +790,9 @@ async function getOverview() {
     };
   }
 
-  const [totalLeads, totalBookings] = await Promise.all([
+  const [totalLeads, bookingsToday] = await Promise.all([
     safeTableCount(client, 'leads'),
-    safeTableCount(client, 'bookings')
+    safeBookingsTodayCount(client)
   ]);
 
   return {
@@ -763,7 +802,7 @@ async function getOverview() {
       activeToday: clinics.filter((clinic) => Date.now() - new Date(clinic.lastActivity).getTime() < 86400000).length,
       newClinics7d: clinics.filter((clinic) => Date.now() - new Date(clinic.createdAt).getTime() < 7 * 86400000).length,
       totalLeads,
-      bookingsToday: totalBookings,
+      bookingsToday,
       revenueMonth: clinics.reduce((sum, clinic) => sum + clinic.revenue, 0)
     },
     clinics,
@@ -774,6 +813,14 @@ async function getOverview() {
 
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body || {};
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const attemptKey = getRequestIp(req) || 'unknown-ip';
+  const attempt = loginAttemptGuard.check(attemptKey);
+  if (!attempt.allowed) {
+    res.setHeader('Retry-After', String(attempt.retryAfterSeconds));
+    res.status(429).json({ error: `Слишком много попыток. Повторите через ${attempt.retryAfterSeconds} сек.` });
+    return;
+  }
   const expectedEmail = process.env.SUPER_ADMIN_EMAIL || (process.env.NODE_ENV === 'production' ? undefined : 'admin@negis.local');
   const expectedPassword = process.env.SUPER_ADMIN_PASSWORD || (process.env.NODE_ENV === 'production' ? undefined : 'admin123');
 
@@ -782,10 +829,19 @@ app.post('/api/auth/login', async (req, res) => {
     return;
   }
 
-  if (String(email).trim().toLowerCase() !== expectedEmail.trim().toLowerCase() || password !== expectedPassword) {
+  if (normalizedEmail !== expectedEmail.trim().toLowerCase() || password !== expectedPassword) {
+    const failedAttempt = loginAttemptGuard.registerFailure(attemptKey);
+    await writeSuperLog(getSupabase(), 'super_admin_login_failed', { email: normalizedEmail || null }, null, null, getRequestIp(req));
+    if (!failedAttempt.allowed) {
+      res.setHeader('Retry-After', String(failedAttempt.retryAfterSeconds));
+      res.status(429).json({ error: `Слишком много попыток. Повторите через ${failedAttempt.retryAfterSeconds} сек.` });
+      return;
+    }
     res.status(401).json({ error: 'Доступ запрещён' });
     return;
   }
+
+  loginAttemptGuard.clear(attemptKey);
 
   res.cookie(SESSION_COOKIE, signSession(expectedEmail), {
     httpOnly: true,
@@ -826,7 +882,11 @@ app.get('/api/clinics', requireAuth, async (_req, res) => {
 
 app.get('/api/clinics/:id', requireAuth, async (req, res) => {
   const clinics = await loadClinics(getSupabase());
-  const clinic = clinics.find((item) => item.id === req.params.id) || clinics[0];
+  const clinic = clinics.find((item) => item.id === req.params.id);
+  if (!clinic) {
+    res.status(404).json({ error: 'Организация не найдена' });
+    return;
+  }
   res.json({
     clinic,
     agents: [],
@@ -1068,7 +1128,7 @@ app.post('/api/clinics/:id/impersonate', requireAuth, async (req, res) => {
   res.json({ url: url.toString(), token, clinic });
 });
 
-app.post('/api/clinics/:id/reset-password', requireAuth, async (req, res) => {
+app.post('/api/clinics/:id/send-recovery', requireAuth, async (req, res) => {
   const client = getSupabase();
   if (!client) {
     res.status(500).json({ error: 'Supabase service role не настроен' });
@@ -1094,22 +1154,27 @@ app.post('/api/clinics/:id/reset-password', requireAuth, async (req, res) => {
     return;
   }
 
-  const temporaryPassword = generateTemporaryPassword();
-  const { error } = await client.auth.admin.updateUserById(userId, { password: temporaryPassword });
+  const { error } = await client.auth.resetPasswordForEmail(login, {
+    redirectTo: PASSWORD_RECOVERY_REDIRECT_URL
+  });
   if (error) {
     res.status(500).json({ error: error.message });
     return;
   }
 
   await client.from('super_logs').insert({
-    action: 'clinic_password_reset',
+    action: 'clinic_password_recovery_sent',
     target_clinic_id: clinic.id,
     target_user_id: userId,
-    details: { login, resetBy: res.locals.session?.email },
+    details: { login, requestedBy: res.locals.session?.email, redirectTo: PASSWORD_RECOVERY_REDIRECT_URL },
     ip_address: getRequestIp(req)
   });
 
-  res.json({ login, temporaryPassword, clinicId: clinic.id, clinicName: clinic.name });
+  res.json({ login, clinicId: clinic.id, clinicName: clinic.name, recoverySent: true });
+});
+
+app.post('/api/clinics/:id/reset-password', requireAuth, (_req, res) => {
+  res.status(410).json({ error: 'Создание временных паролей отключено. Используйте отправку ссылки восстановления.' });
 });
 
 app.post('/api/impersonation/verify', (req, res) => {
