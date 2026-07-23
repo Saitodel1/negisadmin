@@ -2838,3 +2838,153 @@ body {
   .feature-access-row { grid-template-columns: 1fr; }
   .feature-actions { justify-content: flex-start; }
 }
+
+/* Industrial admin entry: exact artwork with a real accessible button overlay. */
+.admin-entry:not(.is-login-open) {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: 100svh;
+  min-height: 100svh;
+  padding: 0;
+  background:
+    #080a0c
+    url('/negis-admin-entry-industrial.png')
+    center center / contain
+    no-repeat;
+}
+
+.admin-entry:not(.is-login-open)::before,
+.admin-entry:not(.is-login-open)::after {
+  display: none;
+}
+
+.admin-entry:not(.is-login-open) .admin-landing {
+  position: relative;
+  min-height: 100svh;
+  padding: 0;
+  background: transparent;
+}
+
+.admin-entry:not(.is-login-open) .admin-core-button {
+  position: absolute;
+  top: 48.3%;
+  left: 50%;
+  width: min(38vw, 67.56vh);
+  min-width: 0;
+  max-width: none;
+  aspect-ratio: 1;
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.admin-entry:not(.is-login-open) .admin-core-button::before {
+  content: '';
+  position: absolute;
+  inset: 3.2%;
+  display: block;
+  padding: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle at 46% 34%,
+      rgba(255, 255, 255, 0.075),
+      rgba(255, 255, 255, 0.012) 34%,
+      transparent 62%
+    );
+  box-shadow: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+  pointer-events: none;
+}
+
+.admin-entry:not(.is-login-open) .admin-core-button::after {
+  display: none;
+}
+
+.admin-entry:not(.is-login-open) .admin-core-button:hover::before {
+  opacity: 1;
+}
+
+.admin-entry:not(.is-login-open) .admin-core-button:active::before,
+.admin-entry:not(.is-login-open) .admin-core-button.is-loading::before {
+  background:
+    radial-gradient(circle at 50% 56%, transparent 42%, rgba(0, 0, 0, 0.24) 84%),
+    rgba(0, 0, 0, 0.08);
+  box-shadow: inset 0 22px 54px rgba(0, 0, 0, 0.28);
+  opacity: 1;
+}
+
+.admin-entry:not(.is-login-open) .admin-core-button:focus-visible {
+  outline: 2px solid #f5c542;
+  outline-offset: 8px;
+}
+
+.admin-entry:not(.is-login-open) .core-brand,
+.admin-entry:not(.is-login-open) .core-action,
+.admin-entry:not(.is-login-open) .entry-status {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-entry:not(.is-login-open) .core-ring {
+  position: absolute;
+  inset: -2px;
+  display: block;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  filter: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-entry:not(.is-login-open) .admin-core-button.is-loading .core-ring {
+  padding: 0;
+  border: 0;
+  background:
+    conic-gradient(
+      from -90deg,
+      transparent 0deg,
+      #f5c542 18deg,
+      #fff4b0 42deg,
+      transparent 68deg 360deg
+    );
+  filter: drop-shadow(0 0 5px rgba(245, 197, 66, 0.5));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  opacity: 1;
+  animation: industrial-entry-progress 520ms linear 1 forwards;
+}
+
+@keyframes industrial-entry-progress {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .admin-entry:not(.is-login-open) {
+    background-size: auto 127vw;
+    background-position: center 45%;
+  }
+
+  .admin-entry:not(.is-login-open) .admin-core-button {
+    top: calc(45% + 4.2vw);
+    width: 86vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-entry:not(.is-login-open) .admin-core-button.is-loading .core-ring {
+    animation: none;
+  }
+}
